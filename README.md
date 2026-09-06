@@ -15,7 +15,7 @@
 **Sistem Pencatatan & Perencanaan Produksi untuk Koperasi Tani Indonesia**
 
 [![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Kunjungi_Situs-success?style=for-the-badge)](https://terrion.vercel.app)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/BRYAN1309/terrion)
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/ITechnoCup2026)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 **Submission for ITECHNO CUP 2026 — Web Development (Mahasiswa)**
@@ -129,7 +129,6 @@
   - [10.5 Jenis Uji yang Ada](#105-jenis-uji-yang-ada--dan-yang-tidak)
   - [10.6 Uji yang Mengunci Invarian](#106-uji-yang-mengunci-invarian)
   - [10.7 Yang Belum Ada](#107-yang-belum-ada)
-- [🧭 Peta Dokumen ke Rubrik Penilaian](#-peta-dokumen-ke-rubrik-penilaian)
 - [📖 Referensi](#-referensi)
 - [📄 Lisensi](#-lisensi)
 
@@ -752,7 +751,7 @@ Daftar fitur bisa ditulis siapa saja, dan hampir semuanya terbaca sama: *"lengka
 | **Akses** | Peran yang boleh membaca dan peran yang boleh menulis — dua hal berbeda |
 | **Menjawab** | Rumusan masalah dari [§1.4](#14-rumusan-masalah) |
 | **Masukan → Keluaran** | Apa yang diketik manusia, dan apa yang dihitung sistem |
-| **Invarian** | [Aturan desain](#anatomi-aturan-desain) yang tidak boleh dilanggar fitur ini |
+| **Invarian** | [Aturan desain](#anatomi-kartu-fitur) yang tidak boleh dilanggar fitur ini |
 
 <a id="anatomi-aturan-desain"></a>
 
@@ -773,7 +772,7 @@ Sepuluh aturan ini bukan preferensi estetika. Masing-masing menjawab satu kegaga
 | **R9** | **Tidak ada koordinat publik** — ditutup di lapis data, bukan lapis tampilan | Lokasi lahan seseorang tidak boleh bocor lewat jalur mana pun |
 | **R10** | **Warna tidak pernah jadi satu-satunya penanda** — minggu berisiko diberi ikon dan label teks | Pengguna buta warna kehilangan seluruh peringatan |
 
-Fitur perencanaan ([F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama)) menulis ke basis data, memanggil layanan di luar proses, dan memakai model bahasa — tiga cara baru untuk melanggar sepuluh aturan di atas. Turunannya karena itu dinyatakan tersendiri sebagai `P1`–`P7`, dan dijelaskan di kartu fitur itu.
+Fitur perencanaan ([F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama)) menulis ke basis data, memanggil layanan di luar proses, dan memakai model bahasa — tiga cara baru untuk melanggar sepuluh aturan di atas. Turunannya karena itu dinyatakan tersendiri sebagai `P1`–`P7`, dan dijelaskan di kartu fitur itu.
 
 ---
 
@@ -794,7 +793,7 @@ Lima belas rute, dan **enam di antaranya tidak menuntut akun sama sekali** — k
 | `/plots` | 🔵🟣 | Semua lahan, dengan pencarian, saringan, dan urutan | [F1](#f1--pencatatan-blok-tanam-empat-isian--fondasi-seluruh-sistem) |
 | `/plots/[id]` | 🔵🟣 | Lahan sebagai layar permainan: pagar, tanaman, penggeser waktu | [F1](#f1--pencatatan-blok-tanam-empat-isian--fondasi-seluruh-sistem) · [F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) |
 | `/dashboard` | 🔵🟣 | Proyeksi 12 minggu, peringatan tabrakan, kalibrasi, dampak terukur | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran) |
-| `/rencana` | 🔵 baca · 🟣 tulis | Rencana tanam musim depan: tiga rencana bersisian, penugasan per anggota | [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) |
+| `/rencana` | 🔵 baca · 🟣 tulis | Rencana tanam musim depan: tiga rencana bersisian, penugasan per anggota | [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) |
 | `/purchases` | 🔵 baca · 🟣 tulis | Kebutuhan pupuk dan pesanan kelompok | [F4](#f4--rdkk-otomatis--agregasi-pupuk-kelompok) |
 | `/purchases/rdkk` | 🔵🟣 | Formulir RDKK resmi, siap cetak | [F4](#f4--rdkk-otomatis--agregasi-pupuk-kelompok) |
 | `/requests` | 🟣 | Permintaan pembeli untuk diterima atau ditolak | [F5](#f5--katalog-publik--kontrak-pasokan-pra-panen) |
@@ -824,7 +823,7 @@ flowchart TD
     style F6 fill:#fff8e1,stroke:#f9a825,stroke-width:3px,color:#7a5200
 ```
 
-> **Yang perlu dibaca dari diagram ini:** anak panah dari **F6** kembali ke **F1** adalah satu-satunya panah yang mengalir ke hulu. Itulah [efek pengungkit lapis perencanaan](#efek-pengungkit) — fitur yang tidak menambah layar baru di hilir, melainkan **mengisi masukan yang selama ini kosong**, sehingga lima fitur yang sudah ada bekerja penuh tanpa satu baris pun kodenya diubah.
+> **Yang perlu dibaca dari diagram ini:** anak panah dari **F6** kembali ke **F1** adalah satu-satunya panah yang mengalir ke hulu. Itulah [efek pengungkit lapis perencanaan](#efek-pengungkit--kenapa-ini-bukan-sekadar-layar-tambahan) — fitur yang tidak menambah layar baru di hilir, melainkan **mengisi masukan yang selama ini kosong**, sehingga lima fitur yang sudah ada bekerja penuh tanpa satu baris pun kodenya diubah.
 
 ---
 
@@ -839,7 +838,7 @@ Tujuh fitur, diurutkan menurut **alur datanya**, bukan menurut menunya. Fitur pe
 | **F3** | [Proyeksi 12 minggu, deteksi tabrakan & saran penggeseran](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran) | RM1 | Satu-satunya layar yang mengubah data menjadi **tindakan** |
 | **F4** | [RDKK otomatis & agregasi pupuk kelompok](#f4--rdkk-otomatis--agregasi-pupuk-kelompok) | RM3 | Menghapus pekerjaan administrasi yang dikerjakan dua kali |
 | **F5** | [Katalog publik & kontrak pasokan pra-panen](#f5--katalog-publik--kontrak-pasokan-pra-panen) | RM4 | Membuat panen dapat ditemukan **sebelum** panen terjadi |
-| **F6** | [Perencana tanam musim depan](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) ⭐ | RM5 | Mengisi kotak `KOSONG` di [§1.1](#kekosongan-yang-tersisa) — dan menyalakan lima fitur di atasnya |
+| **F6** | [Perencana tanam musim depan](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) ⭐ | RM5 | Mengisi kotak `KOSONG` di [§1.1](#kekosongan-yang-tersisa) — dan menyalakan lima fitur di atasnya |
 | **F7** | [Halaman lahan publik tanpa akun](#f7--halaman-lahan-publik-tanpa-akun) | RM6 | Membuat sistem terjangkau oleh pihak yang datanya dicatat |
 
 ---
@@ -1077,7 +1076,7 @@ Peringatan itu juga menyebut **berapa lahan dari total lahan** yang menyumbang, 
 
 Tombol ini hanya milik 🟣 pengurus, dan **ia menolak blok yang sudah tertanam**. Blok yang sudah di tanah punya tanggal tanam nyata; menulis ulangnya tidak memindahkan satu ton panen pun — ia hanya membuat catatan bertengkar dengan lapangan.
 
-Konsekuensinya jujur dan penting: **pada koperasi yang seluruh catatannya dibuat setelah tanam, tombol ini tidak punya apa pun untuk dikerjakan.** Aturannya tidak berubah; yang berubah adalah **populasi yang memenuhi syarat**. Sejak [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) ada, blok musim depan lahir dengan tanggal tanam **di masa depan** — dan fitur yang dulu selalu menolak kini menjadi tindak lanjut wajar dari rencana yang baru diterapkan.
+Konsekuensinya jujur dan penting: **pada koperasi yang seluruh catatannya dibuat setelah tanam, tombol ini tidak punya apa pun untuk dikerjakan.** Aturannya tidak berubah; yang berubah adalah **populasi yang memenuhi syarat**. Sejak [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) ada, blok musim depan lahir dengan tanggal tanam **di masa depan** — dan fitur yang dulu selalu menolak kini menjadi tindak lanjut wajar dari rencana yang baru diterapkan.
 
 ##### Empat ubin dampak — dan aturan `nil` versus `0`
 
@@ -1120,7 +1119,7 @@ Layar ini ditutup oleh **Panen tujuh hari ke depan** (berdampingan dengan status
 | **Buat pesanan kelompok** (🟣) menyatakan terang-terangan bahwa ia adalah **draf tanpa harga** | `R8` — tidak ada uang berpindah di dalam Terrion |
 | **Musim yang dilihat bisa dipilih** | Agregasi dan pesanan kelompok menerima jendela musim sebagai parameter, sehingga **RDKK musim depan bisa terbit sebelum musim itu dimulai** |
 
-> **Baris terakhir itu yang mengembalikan RDKK ke arti namanya.** RDKK adalah singkatan dari ***Rencana* Definitif Kebutuhan Kelompok** — menurut definisinya dokumen **pra-musim**. Menyusunnya dari tanaman yang sudah tumbuh membuat angkanya benar dan **waktunya terlambat** untuk jalur alokasi subsidi. Sejak [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) ada, ia terbit di jendela yang benar.
+> **Baris terakhir itu yang mengembalikan RDKK ke arti namanya.** RDKK adalah singkatan dari ***Rencana* Definitif Kebutuhan Kelompok** — menurut definisinya dokumen **pra-musim**. Menyusunnya dari tanaman yang sudah tumbuh membuat angkanya benar dan **waktunya terlambat** untuk jalur alokasi subsidi. Sejak [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) ada, ia terbit di jendela yang benar.
 
 ##### `/purchases/rdkk` — formulir resmi, bukan tabel yang mirip formulir
 
@@ -1604,16 +1603,6 @@ Tabel ini adalah **kontrak keselarasan** bab ini: setiap rumusan masalah punya f
 | **RM5** | Tidak ada tempat menyatakan rencana | **F6** ⭐ | Klien mengirim pilihan, peladen menerbitkan angka; `plan_already_applied` ditegakkan indeks unik | **Inovasi 20%** |
 | **RM6** | Petani tidak bisa verifikasi | **F1**, **F7** | View `public_plot` **tidak punya** kolom koordinat — ditutup di lapis data | UI/UX 15% |
 
-#### Peta fitur ke rubrik penilaian babak penyisihan
-
-| Aspek penilaian | Bobot | Yang menjawabnya di bab ini |
-|---|:--:|---|
-| **Kesesuaian Tema & Subtema** | 20% | **F7** dan **T1** — enam dari lima belas rute tidak menuntut akun sama sekali; inklusivitas sebagai keputusan arsitektur, bukan kata sifat |
-| **Inovasi & Orisinalitas Ide** | 20% | **F6** dan [efek pengungkitnya](#efek-pengungkit) — fitur yang menyalakan lima fitur lama tanpa mengubah kodenya; **F3** saran penggeseran konkret; **T3** kejujuran sebagai kategori pembeda |
-| **Fungsionalitas Website** | 20% | Ketujuh kartu fitur ditutup **mekanisme pembukti** — invarian yang benar-benar menolak, bukan daftar fitur yang dijanjikan |
-| **UI/UX & Responsivitas** | 15% | **T5** lebar 360 px sebagai target utama, `R10` warna bukan satu-satunya penanda, keadaan kosong bergaya; **T7** navigasi dan percepatan kerja |
-| **Implementasi Teknologi** | 15% | **F2** pemilihan model beserta bukti pembandingnya; **F6** determinisme struktural dan pemutus arus; **T4** keamanan berlapis; **T6** ketahanan; [**§10**](#-10-testing) — **1.295 uji lulus**, coverage terukur, dan suite yang berjalan tanpa Docker maupun kunci API |
-| **Dokumentasi & Repositori** | 10% | Setiap fitur dipetakan ke rumusan masalah, aturan desain `R1`–`R10`, dan prinsip `P1`–`P7` — bukan daftar tanpa alasan |
 
 ---
 
@@ -1713,7 +1702,7 @@ Selisih itu **sebagian besar bukan selisih mutu.** Ia adalah **selisih kapan bar
 | Posisi tawar | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran) | **Selisih harga terhadap referensi lokal, ditimbang tonase** (Rp/kg) | Tidak ada pembanding sama sekali — harga hari panen diterima apa adanya | 🟩 **TERUKUR** — ubin dampak #1 |
 | Posisi tawar | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran) | **Hari dari panen ke pembayaran** | Tidak pernah dihitung siapa pun | 🟩 **TERUKUR** — ubin dampak #2 |
 | Meratakan puncak (hilir) | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran) | **Tonase teralihkan** (ton) — proyeksi dijalankan ulang atas tanggal tanam sebelum saran diterima, lalu diselisihkan | 0 — tidak ada saran, tidak ada pergeseran | 🟩 **TERUKUR**, ubin dampak #4 — **kosong sampai ada penggeseran yang benar-benar diterapkan** |
-| Meratakan puncak (hulu) | [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) | **Penurunan puncak tonase mingguan** rencana *Aman* | Penjadwalan status quo (semua tanam berbarengan) | 🟨 **DIPROYEKSIKAN** — **32,5 → 18,3 ton (−44%)** **[DITURUNKAN dari data uji internal]** |
+| Meratakan puncak (hulu) | [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) | **Penurunan puncak tonase mingguan** rencana *Aman* | Penjadwalan status quo (semua tanam berbarengan) | 🟨 **DIPROYEKSIKAN** — **32,5 → 18,3 ton (−44%)** **[DITURUNKAN dari data uji internal]** |
 | Akses subsidi | [F4](#f4--rdkk-otomatis--agregasi-pupuk-kelompok) | Anggota yang melewati batas 2 ha **ditandai per nama** — target 0 yang lolos tanpa ditandai | Kelebihan dipotong diam-diam atau pengajuan ditolak, tanpa ada yang tahu anggota mana | 🟩 **TERUKUR** |
 
 Metrik lengkap beserta targetnya ada di [§1.6 Tujuan](#16-tujuan) — Objektif 2 (meratakan puncak) dan Objektif 3 (RDKK dan pasar) adalah objektif yang menopang SDG 8.
@@ -1833,7 +1822,7 @@ Subtema lomba berbunyi *Smart Sustainable Digital Solution for **Inclusive** Soc
 | **Bahasa Indonesia sepenuhnya** | Termasuk seluruh pesan galat, di build pengembangan maupun produksi | [T5](#t5--aksesibilitas--responsivitas) |
 | **Tidak bergantung pada persepsi warna** | Setiap penanda warna disertai ikon dan teks (`R10`) | [T5](#t5--aksesibilitas--responsivitas) |
 | **Menyasar unit yang sudah ada** | Koperasi dan kadernya — **bukan menuntut jutaan petani berubah kebiasaan**. Kader memang sudah dibayar untuk mencatat | [F1](#f1--pencatatan-blok-tanam-empat-isian--fondasi-seluruh-sistem) |
-| **Perencanaan tidak menuntut kebiasaan baru** | Rencana disusun dari lahan yang **sudah tercatat**, dan menuliskan dirinya sendiri ke sistem. Nol pendataan tambahan dibebankan ke kader | [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) |
+| **Perencanaan tidak menuntut kebiasaan baru** | Rencana disusun dari lahan yang **sudah tercatat**, dan menuliskan dirinya sendiri ke sistem. Nol pendataan tambahan dibebankan ke kader | [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) |
 | **Utuh di jaringan buruk dan anggaran nol** | Bila layanan AI tidak terjangkau, perencanaan tetap berjalan di dalam Go — dan layar **mengatakan mesin mana yang menjawab** | [T6](#t6--ketahanan-sistem) |
 
 > **Angka yang meringkas seluruh tabel ini:** satu koperasi dengan **47 anggota** hanya memerlukan **2 akun** **[DITURUNKAN]** — bukan 49. Sistem yang menyasar petani perorangan harus menunggu jutaan orang berubah kebiasaan; sistem yang menyasar koperasi hanya perlu **satu kader per koperasi**.
@@ -1870,12 +1859,12 @@ Klaim yang tidak bisa digugurkan bukan klaim ilmiah. Tiga hasil berikut akan **m
 | SDG & Target | Gap yang ditutup | Fitur | Metrik dampak | Status |
 |---|:--:|:--:|---|:--:|
 | **8.2** Modernisasi teknologi | G2 | [F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) | Galat jendela panen (hari); cakupan varietas | 🟩 |
-| **8.2** Meratakan puncak | G1, G5 | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran), [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) | Penurunan puncak tonase mingguan; tonase teralihkan | 🟨 / 🟩 |
+| **8.2** Meratakan puncak | G1, G5 | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran), [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) | Penurunan puncak tonase mingguan; tonase teralihkan | 🟨 / 🟩 |
 | **8.3** Posisi tawar & akses subsidi | G3, G4 | [F4](#f4--rdkk-otomatis--agregasi-pupuk-kelompok), [F5](#f5--katalog-publik--kontrak-pasokan-pra-panen) | Selisih harga vs referensi (ditimbang tonase); permintaan diterima; anggota > 2 ha ditandai | 🟩 |
 | **9.3** Integrasi rantai nilai | G1, G4 | [F1](#f1--pencatatan-blok-tanam-empat-isian--fondasi-seluruh-sistem), [F5](#f5--katalog-publik--kontrak-pasokan-pra-panen) | Hektare terkelola; listing yang ditemukan pembeli sebelum panen | 🟩 |
 | **9.c** Akses TIK | G1, G5 | [F7](#f7--halaman-lahan-publik-tanpa-akun), [T5](#t5--aksesibilitas--responsivitas) | 6 dari 15 rute tanpa akun; 2 akun per 47 anggota; petani membuka halaman lahannya | 🟩 / 🟨 |
-| **11.a** Keterkaitan desa–kota | G4, G5 | [F5](#f5--katalog-publik--kontrak-pasokan-pra-panen), [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) | Pembeli kota yang mengajukan kontrak; koperasi yang menerbitkan rencana musim depan | 🟩 |
-| **12.3** Kehilangan pasca panen | — | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran), [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) | Susut akibat kapasitas pengeringan terlampaui | ⬜ **KO-MANFAAT** |
+| **11.a** Keterkaitan desa–kota | G4, G5 | [F5](#f5--katalog-publik--kontrak-pasokan-pra-panen), [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) | Pembeli kota yang mengajukan kontrak; koperasi yang menerbitkan rencana musim depan | 🟩 |
+| **12.3** Kehilangan pasca panen | — | [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran), [F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) | Susut akibat kapasitas pengeringan terlampaui | ⬜ **KO-MANFAAT** |
 | **2.3** Pendapatan produsen kecil | — | Seluruh sistem | Pendapatan per musim terhadap referensi | ⬜ **KO-MANFAAT** |
 
 #### Metrik yang ditampilkan produk — bukan kata sifat
@@ -1903,12 +1892,50 @@ Bab ini memuat tiga hal: **tautan hasil karya yang sudah di-*hosting***, **video
 
 #### Akun demo
 
-Karena akun kader dan pengurus koperasi dibuat oleh operator — bukan lewat pendaftaran mandiri — dua akun berikut disediakan agar penilai bisa langsung masuk ke ruang kerja koperasi maupun ke sisi pembeli.
+Karena akun kader dan pengurus koperasi **dibuat operator — bukan lewat pendaftaran mandiri** ([§8.2.6](#826-alur-operator-sistem--penyediaan-wilayah--koperasi)), seluruh akun demo dicantumkan terbuka di sini agar penilai bisa langsung masuk tanpa meminta apa pun ke tim.
 
-| Peran | Surel | Kata sandi |
-|---|---|---|
-| **Pengurus koperasi** | `pengurus@terrion.test` | `terrion-demo-2026` |
-| **Pembeli institusi** | `pembeli@terrion.test` | `terrion-demo-2026` |
+> 🔑 **Kata sandi untuk SELURUH akun di bawah ini sama:** **`terrion-demo-2026`**
+
+##### Tiga akun ini sudah cukup untuk menilai seluruh fitur
+
+Ketiganya bersandar pada koperasi yang sama — **KUD Tani Makmur Subang** — sehingga tindakan di satu akun terlihat akibatnya di akun lain.
+
+| Peran | Surel | Kata sandi | Masuk sebagai | Bisa mengerjakan |
+|---|---|---|---|---|
+| **Pengurus koperasi** | `pengurus@terrion.test` | `terrion-demo-2026` | Bu Sri Wahyuni | Semua layar kerja koperasi: dasbor, **rencana tanam** ([F6](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) ⭐), RDKK, dan **memutuskan** permintaan pembeli |
+| **Kader lapangan** | `kader@terrion.test` | `terrion-demo-2026` | Pak Asep Suryana | Pencatatan blok tanam dan panen; layar yang sama dengan pengurus tetapi **hanya baca** pada rencana dan pembelian — [§8.3](#83-matriks-hak-akses-pengalihan-rute--dinding-pengaman) |
+| **Pembeli institusi** | `pembeli@terrion.test` | `terrion-demo-2026` | Pak Budi Santoso · *PT Pangan Nusantara* | Menelusuri katalog dan **mengajukan kontrak pasokan** ke koperasi mana pun ([F5](#f5--katalog-publik--kontrak-pasokan-pra-panen)) |
+
+> **Alur silang yang paling cepat menunjukkan sistemnya bekerja:** masuk sebagai **pembeli**, ajukan permintaan dari `/catalog`; keluar, masuk sebagai **pengurus**, permintaan itu sudah menunggu keputusan di `/requests`.
+
+##### Sebelas koperasi lain — satu akun pengurus per wilayah
+
+Disediakan supaya penilai bisa memeriksa **isolasi antar-penyewa**: masuk ke koperasi mana pun di bawah ini, dan yang terlihat **hanya** data koperasi itu. Batas ini ditegakkan di lapis basis data, bukan di antarmuka — lihat [§6.5.3 Row Level Security](#653-arsitektur-keamanan-row-level-security-rls--isolasi-multi-tenant).
+
+| Surel | Kata sandi | Koperasi | Kabupaten | Provinsi |
+|---|---|---|---|---|
+| `pengurus.brebes@terrion.test` | `terrion-demo-2026` | KUD Sumber Rejeki Brebes | Brebes | Jawa Tengah |
+| `pengurus.garut@terrion.test` | `terrion-demo-2026` | KUD Mekar Tani Garut | Garut | Jawa Barat |
+| `pengurus.wonosobo@terrion.test` | `terrion-demo-2026` | KUD Dieng Makmur Wonosobo | Wonosobo | Jawa Tengah |
+| `pengurus.malang@terrion.test` | `terrion-demo-2026` | KUD Rukun Tani Malang | Malang | Jawa Timur |
+| `pengurus.karo@terrion.test` | `terrion-demo-2026` | KUD Karo Bertani | Karo | Sumatera Utara |
+| `pengurus.banyuasin@terrion.test` | `terrion-demo-2026` | KUD Sriwijaya Tani | Banyuasin | Sumatera Selatan |
+| `pengurus.lamteng@terrion.test` | `terrion-demo-2026` | KUD Sinar Tani Terbanggi | Lampung Tengah | Lampung |
+| `pengurus.sidrap@terrion.test` | `terrion-demo-2026` | KUD Bina Tani Sidrap | Sidenreng Rappang | Sulawesi Selatan |
+| `pengurus.tabanan@terrion.test` | `terrion-demo-2026` | Subak Sari Tabanan | Tabanan | Bali |
+| `pengurus.lomteng@terrion.test` | `terrion-demo-2026` | KUD Mandiri Lombok Tengah | Lombok Tengah | Nusa Tenggara Barat |
+| `pengurus.batola@terrion.test` | `terrion-demo-2026` | KUD Barito Tani | Barito Kuala | Kalimantan Selatan |
+
+##### Dua peran yang sengaja tidak punya akun
+
+| Peran | Kenapa tanpa akun |
+|---|---|
+| **Petani anggota** | Memeriksa lahannya lewat **kode publik** tanpa mendaftar, tanpa kata sandi, tanpa aplikasi. Ini keputusan inklusi, bukan fitur yang belum dibuat — [F7](#f7--halaman-lahan-publik-tanpa-akun) · [§8.2.4](#824-alur-petani-anggota--inklusivitas-ekstrem-tanpa-beban-akun) |
+| **Pengunjung publik** | Halaman muka, [Atlas](#424--atlas), dan [Katalog](#429--katalog-pembeli) terbuka tanpa masuk — [§8.2.5](#825-alur-pengunjung-publik--pemangku-kebijakan) |
+
+> Pembeli baru juga **boleh mendaftar sendiri** lewat `/signup` bila penilai ingin merasakan alur pendaftarannya; peran `buyer` adalah satu-satunya yang terbuka untuk pendaftaran mandiri.
+
+> ⚠️ **Akun-akun ini adalah data demo, bukan data pribadi.** Seluruh nama, nomor telepon, dan luas lahan dibangkitkan oleh `cmd/seed` di `Terrion_Backend` dan berstatus **ASUMSI**. Tidak ada satu pun petani sungguhan yang datanya ada di sistem ini. Kredensial ini hanya berlaku di lingkungan demo dan akan dicabut setelah penjurian.
 
 > Layanan yang menopang tautan di atas — beserta status *hosting* ketiga repositorinya — didokumentasikan terpisah di [§7.0 Layanan yang Sudah Berjalan](#70-layanan-yang-sudah-berjalan).
 
@@ -2259,7 +2286,7 @@ Aturan yang dipegang bagian ini: **setiap pilihan teknologi disertai masalah yan
 
 #### 5.2.3 Kenapa Tiga Layanan, Bukan Satu — dan di Mana Garis Potongnya
 
-Fitur [Rencana Tanam Musim Depan](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) punya tiga lapis, dan **hanya dua di antaranya lebih murah di Python:**
+Fitur [Rencana Tanam Musim Depan](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) punya tiga lapis, dan **hanya dua di antaranya lebih murah di Python:**
 
 | Lapis | Isi | Di mana | Kenapa di situ |
 |:--:|---|---|---|
@@ -2597,7 +2624,7 @@ Layanan `Terrion_Backend` dirancang menggunakan prinsip **Clean Layered Architec
 ### 6.4 AI Architecture
 
 <div align="center">
-  <img src="./assets/backend_architecture.png" alt="Terrion AI and Optimization Pipeline Architecture" width="100%" />
+  <img src="./assets/ai_architecture.png" alt="Terrion AI and Optimization Pipeline Architecture" width="100%" />
   <p><em>Gambar 6.4: Pipeline Preskriptif, Inferensi Solver, Simulasi Monte Carlo, dan Guardrail LLM</em></p>
 </div>
 
@@ -3725,6 +3752,7 @@ Terrion adalah **tiga repositori terpisah**. Bagian ini menyediakan **dua jalur*
 ### 7.0 Layanan yang Sudah Berjalan
 
 Ketiga layanan sudah ter-*deploy*. Untuk sekadar mencoba, **tidak perlu memasang apa pun** — cukup buka tautan frontend.
+Akun demo untuk masuk ke ruang kerja koperasi maupun sisi pembeli tersedia di [§4.1 Tautan Hasil Karya](#41-tautan-hasil-karya).
 
 | Layanan | URL | Platform |
 |---|---|---|
@@ -3737,14 +3765,47 @@ curl https://terrionbackend-production.up.railway.app/api/health
 curl https://terrionai-production.up.railway.app/ready
 ```
 
-Frontend juga bisa dijalankan lokal sambil menunjuk ke backend produksi — berguna untuk mengembangkan antarmuka tanpa menyiapkan basis data sama sekali:
+#### Jalur kilat penilaian — jalan di lokal dalam 3 menit, **tanpa satu pun kunci rahasia**
 
-```env
-# Terrion_Frontend/.env.local
-NEXT_PUBLIC_API_URL=https://terrionbackend-production.up.railway.app
+Frontend adalah satu-satunya layanan yang perlu dijalankan penilai. Ia menunjuk ke **backend produksi yang sudah hidup**, sehingga basis data, Redis, Supabase Auth, dan layanan AI **tidak perlu disiapkan sama sekali** — dan tidak ada satu pun kredensial yang harus diminta ke tim.
+
+```bash
+git clone https://github.com/ITechnoCup2026/Terrion_Frontend.git
+cd Terrion_Frontend
+
+# Satu-satunya variabel yang dibutuhkan. Bukan rahasia — ia dibaca peramban.
+echo 'NEXT_PUBLIC_API_URL=https://terrionbackend-production.up.railway.app' > .env.local
+
+corepack enable && pnpm install
+pnpm dev                      # → http://localhost:3000
 ```
 
-> ⚠️ **Tentang rahasia.** Seluruh nilai `.env` di bab ini adalah **placeholder**. Kunci sungguhan — kata sandi basis data, `SUPABASE_SERVICE_ROLE_KEY`, token Redis, `CRON_SECRET`, `AI_SERVICE_TOKEN`, `LLM_API_KEY` — **tidak pernah ditulis ke repositori ini maupun ke dokumen mana pun**. `.env` masuk `.gitignore` di ketiga repo. `SUPABASE_SERVICE_ROLE_KEY` khususnya melewati seluruh RLS: ia setara akses penuh ke basis data, dan hanya boleh hidup di variabel lingkungan platform *hosting*.
+Buka `http://localhost:3000`, lalu masuk dengan akun demo mana pun di [§4.1](#41-tautan-hasil-karya) — misalnya `pengurus@terrion.test` / `terrion-demo-2026`. Seluruh fitur berjalan penuh: dasbor, rencana tanam, RDKK, katalog, dan kontrak pasokan.
+
+| Yang **tidak** perlu disiapkan di jalur ini | Kenapa |
+|---|---|
+| Postgres / Supabase | Backend produksi yang memegangnya |
+| Redis | Sesi dan cache hidup di sisi peladen |
+| Kunci LLM | Narasi dilayani layanan AI produksi |
+| Go dan Python | Keduanya hanya dibutuhkan bila membangun backend sendiri |
+
+> **Kenapa `NEXT_PUBLIC_API_URL` boleh ditulis terbuka sementara variabel lain tidak.** Awalan `NEXT_PUBLIC_` di Next.js berarti nilainya **dipanggang ke dalam bundel yang dikirim ke peramban** — ia memang publik menurut definisinya, dan isinya hanya alamat API yang sudah tercantum di tabel atas. Seluruh variabel lain di bab ini menyentuh basis data, sesi, atau tagihan; tidak satu pun boleh meninggalkan variabel lingkungan platform *hosting*.
+
+#### Membangun backend sendiri
+
+Jalur lengkap ada di [§7.3](#73-jalur-a--instalasi-tanpa-docker) (tanpa Docker) dan [§7.4](#74-jalur-b--instalasi-dengan-docker) (dengan Docker). Keduanya menuntut **proyek Supabase dan Upstash milik penilai sendiri** — keduanya punya paket gratis, dan [§7.1](#71-prerequisites) menunjukkan persis di layar mana tiap nilai disalin. Basis datanya terisi lewat `cmd/seed`, yang membangkitkan dua belas koperasi dan seluruh akun demo di [§4.1](#41-tautan-hasil-karya) — jadi hasil akhirnya identik dengan yang berjalan di produksi.
+
+> 🔒 **Isi `.env` tidak dicantumkan di repositori ini, dan itu disengaja.** Berkas `.env` produksi memuat kredensial yang **terhubung langsung dengan penagihan (*billing*)** — basis data Supabase, Redis Upstash, dan kunci penyedia LLM yang tiap panggilannya berbiaya. Menerbitkannya di repositori publik berarti membuka tagihan tim kepada siapa pun yang menemukannya.
+>
+> **Bila juri membutuhkan isi `.env` untuk keperluan penilaian**, mohon hubungi ketua tim melalui WhatsApp:
+>
+> | Ketua Tim | Kontak |
+> |---|---|
+> | **Bryan Thanaya** · *Project Lead* | **[+62 813-9783-3239](https://wa.me/6281397833239)** |
+>
+> Nilainya dikirim lewat kanal pribadi, bukan lewat repositori publik. Perlu ditegaskan: [jalur kilat di atas](#jalur-kilat-penilaian--jalan-di-lokal-dalam-3-menit-tanpa-satu-pun-kunci-rahasia) sudah menjalankan **seluruh fitur** tanpa satu pun kunci tersebut — permintaan ini hanya diperlukan bila juri ingin membangun tumpukan penuh di atas infrastruktur tim.
+
+> ⚠️ **Tentang rahasia.** Seluruh nilai `.env` di bab ini adalah **placeholder**. Kunci sungguhan — kata sandi basis data, `SUPABASE_SERVICE_ROLE_KEY`, token Redis, `CRON_SECRET`, `AI_SERVICE_TOKEN`, `LLM_API_KEY` — **tidak pernah ditulis ke repositori ini maupun ke dokumen mana pun**. `.env` masuk `.gitignore` di ketiga repo. `SUPABASE_SERVICE_ROLE_KEY` khususnya melewati seluruh RLS: ia setara akses penuh ke basis data, dan hanya boleh hidup di variabel lingkungan platform *hosting*. **Juri yang membutuhkan nilai sungguhannya dapat menghubungi ketua tim, [Bryan Thanaya, di +62 813-9783-3239](https://wa.me/6281397833239)** — kunci-kunci ini terkait penagihan, sehingga tidak diterbitkan secara terbuka.
 
 ---
 
@@ -3786,9 +3847,9 @@ Ketiganya punya paket gratis yang cukup untuk menjalankan Terrion sepenuhnya:
 ```bash
 mkdir Terrion && cd Terrion
 
-git clone https://github.com/<org>/Terrion_Backend.git
-git clone https://github.com/<org>/Terrion_Frontend.git
-git clone https://github.com/<org>/Terrion_AI.git      # opsional
+git clone https://github.com/ITechnoCup2026/Terrion_Backend.git
+git clone https://github.com/ITechnoCup2026/Terrion_Frontend.git
+git clone https://github.com/ITechnoCup2026/Terrion_AI.git      # opsional
 ```
 
 Struktur yang diharapkan:
@@ -5617,7 +5678,7 @@ Menerapkan saran yang muncul di `dashboard.suggestions` untuk minggu dan komodit
 
 > **Penolakan ini menjelaskan dirinya per blok, bukan per permintaan.** `already_planted: 3` memberi tahu pengurus bahwa ketiga blok sudah di tanah — dan blok yang sudah di tanah punya tanggal tanam nyata; menulis ulangnya tidak memindahkan satu ton panen pun, ia hanya membuat catatan bertengkar dengan lapangan.
 >
-> Pada koperasi yang seluruh catatannya dibuat **setelah** tanam, endpoint ini **selalu** mengembalikan penolakan ini. Yang mengubahnya bukan aturannya, melainkan populasi yang memenuhi syarat: blok yang lahir dari [rencana musim depan](#-rencana-tanam-musim-depan) tanggal tanamnya masih di depan.
+> Pada koperasi yang seluruh catatannya dibuat **setelah** tanam, endpoint ini **selalu** mengembalikan penolakan ini. Yang mengubahnya bukan aturannya, melainkan populasi yang memenuhi syarat: blok yang lahir dari [rencana musim depan](#f6--perencana-tanam-musim-depan---fitur-pembeda-utama) tanggal tanamnya masih di depan.
 
 Penerapan menulis tanggal tanam **dan** entri log `stagger_applied` sebagai **satu peristiwa** — entri log tanpa perubahan tanggal akan mengarang pengalihan yang tidak pernah terjadi; perubahan tanggal tanpa entri log menyembunyikannya. Log itulah yang mengisi ubin dampak *tonase teralihkan*.
 
@@ -6388,33 +6449,9 @@ Tiga keputusan yang membuatnya mungkin. Ketiganya punya biaya, dan ketiganya dib
 | **Determinisme** | ✅ | `test_solver_determinism.py` dan pemecah seri di Go |
 | **Keamanan / privasi** | ✅ | `TestRequestCarriesNoPersonalData` + `test_no_personal_data.py` |
 | **Snapshot** | ❌ | Tidak dipakai — snapshot mengunci tampilan, bukan perilaku |
-| **E2E (Playwright/Cypress)** | ❌ | **Belum ada.** Digantikan `TESTING.md`, panduan uji manual bertahap |
+| **E2E (Playwright/Cypress)** | ❌ | **Belum ada.** Pengujian integrasi antarmuka saat ini divalidasi secara manual |
 | **Uji beban** | ❌ | Belum ada |
 | **CI otomatis** | ❌ | **Belum ada** `.github/workflows` di ketiga repo — lihat [§10.7](#107-yang-belum-ada) |
-
-#### Panduan uji manual — `Terrion_Backend/TESTING.md`
-
-Sebagai ganti E2E otomatis, ada panduan yang menuntun satu orang menguji seluruh sistem dari menyiapkan `.env` sampai menyentuh setiap tombol dan **setiap penolakan**. Sepuluh alur, masing-masing berbentuk sama:
-
-> **Konsep** — apa fitur ini dan kenapa ada
-> **Uji** — apa yang diklik, isi field apa
-> **Harus terlihat** — hasil yang benar
-> **Edge case** — apa yang sengaja dibuat gagal, dan **pesan apa yang muncul**
-
-| Alur | Isi |
-|:--:|---|
-| A | Autentikasi |
-| B | Dasbor koperasi |
-| C | Lahan dan blok |
-| D | Catat panen dan kalibrasi model |
-| E | Deteksi tabrakan dan penggeseran tanam |
-| F | RDKK dan pembelian sarana produksi |
-| G | Katalog dan permintaan pasokan |
-| H | Atlas dan halaman lahan publik |
-| I | Rencana Tanam Musim Depan |
-| J | Cron cuaca |
-
-> Bagian *Edge case* itulah yang membuat **jalur gagal ikut bisa didemokan**: mencatat panen dengan tanggal besok menghasilkan kalimat yang berbeda dari mencatat panen yang sudah pernah dicatat, dan keduanya ada di panduan beserta kalimatnya.
 
 ---
 
@@ -6459,24 +6496,12 @@ Dinyatakan terbuka, sesuai [Catatan Metodologi Angka](#-catatan-metodologi-angka
 |---|---|---|
 | **Belum ada CI** | Ketiga repo tidak punya `.github/workflows`. Uji dijalankan manual — dan itulah **kenapa berkas emas kembar sempat menyimpang** antara kedua repo | Satu workflow per repo yang menjalankan uji + lint pada tiap *push*, **plus satu langkah yang membandingkan kedua berkas emas dan gagal bila berbeda** |
 | **Alat coverage belum terpasang** | `@vitest/coverage-v8` tidak ada di `package.json`; `pytest-cov` tidak ada di `[project.optional-dependencies].dev`. Angka di [§10.2](#102-test-coverage) diukur dengan memasangnya **sementara**, lalu repo dikembalikan | Tambahkan keduanya sebagai *dev dependency* |
-| **Belum ada E2E otomatis** | Digantikan `TESTING.md` yang dijalankan manusia | Playwright untuk lima alur utama |
+| **Belum ada E2E otomatis** | Verifikasi alur antarmuka saat ini dijalankan secara manual | Playwright untuk lima alur utama |
 | **Uji sentuh di ponsel belum tuntas** | Geser, perbesar, dan cubit sudah berfungsi | Sesi pengujian perangkat nyata |
 | **`lib/canvas/renderer.ts` 0%** | Ia menggambar ke `CanvasRenderingContext2D`; tidak ada yang bisa diperiksa selain piksel | Uji snapshot piksel — **belum jelas sepadan** |
 | **Belum ada uji beban** | Belum diukur berapa koperasi serentak yang tertahan satu instans | Skenario k6 pada jalur `propose` dan `dashboard` |
 | **Benchmark model bahasa bersampel kecil** | 12 narasi per model, satu berkas fikstur | Pengukuran ulang dengan data sungguhan |
 
----
-
-## 🧭 Peta Dokumen ke Rubrik Penilaian
-
-| Aspek penilaian | Bobot | Bagian dokumen yang menjawabnya |
-|---|:--:|---|
-| **Kesesuaian Tema & Subtema** | 20% | [§1.3](#13-keterkaitan-permasalahan-dengan-sdgs) — keterkaitan **masalah** dengan SDG 8, 9, dan 11 pada target spesifik; [**Bab 3**](#-3-dampak-solusi-terhadap-sdgs) — dampak **solusi** dengan mekanisme, metrik, baseline, dan **status bukti** per target, termasuk ko-manfaat yang dinyatakan tetapi tidak diklaim; [§3.6](#36-inklusivitas-sebagai-keputusan-arsitektur-bukan-kata-sifat) — inklusivitas sebagai delapan keputusan arsitektur (2 akun untuk 47 anggota), bukan kata sifat |
-| **Inovasi & Orisinalitas Ide** | 20% | [§1.2](#12-gap-analysis) — pemetaan terhadap enam solusi yang sudah ada; [§1.8.3](#183-empat-pembeda-yang-tidak-dimiliki-solusi-sekelasnya) — empat pembeda; [§1.8.5](#185-peta-persepsi-perceptual-map) — peta persepsi dengan kuadran kosong; [§2.3 F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) dan [efek pengungkitnya](#efek-pengungkit) |
-| **Fungsionalitas Website** | 20% | [**§4.1**](#41-tautan-hasil-karya) — **tautan hasil karya yang sudah di-*hosting* dan video demo penuh**; [§4.2](#42-screenshot-per-use-case) — sembilan *use case* yang benar-benar berjalan, satu tangkapan layar masing-masing; [§1.5.5](#155-matriks-keselarasan--masalah--solusi--fitur--bukti) — matriks keselarasan; [§2.3](#23-fitur-utama) — tujuh fitur utama, masing-masing ditutup **mekanisme pembukti** yang benar-benar menolak; [§3.8](#38-ringkasan-dampak--sdg--gap--fitur--metrik--status) — metrik dampak yang benar-benar dihitung produk; [**§10.6**](#106-uji-yang-mengunci-invarian) — setiap invarian yang diklaim punya uji yang benar-benar gagal bila dilanggar |
-| **UI/UX & Responsivitas** | 15% | [**§4.2**](#42-screenshot-per-use-case) — **sembilan layar sebagaimana benar-benar tampil**, termasuk [lahan yang digambar alih-alih ditabelkan](#423--visualisasi-lahan-petani) untuk pengguna yang tidak terbiasa membaca tabel; [§1.7.2](#172-profil-unit-target-koperasi-bukan-petani) — lebar 360 px sebagai target utama; [§2.4 T5](#t5--aksesibilitas--responsivitas) dan [T7](#t7--navigasi--percepatan-kerja) |
-| **Implementasi Teknologi** | 15% | [§1.5.6](#156-kenapa-solusinya-berbentuk-begini--lima-keputusan-yang-menentukan) — lima keputusan rancangan; [§2.3 F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) dan [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama); [§2.4 T4](#t4--keamanan--isolasi-data) dan [T6](#t6--ketahanan-sistem); [**§5.2**](#52-alasan-pemilihan-teknologi) — alasan tiap teknologi beserta **alternatif yang ditolak**, [sepuluh ADR](#524-sepuluh-adr--keputusan-arsitektur-yang-tertulis), [analisis radius ledakan](#523-kenapa-tiga-layanan-bukan-satu--dan-di-mana-garis-potongnya), dan [§5.2.6](#526-teknologi-yang-sengaja-tidak-dipakai) teknologi yang sengaja tidak dipakai |
-| **Dokumentasi & Repositori** | 10% | [Catatan Metodologi Angka](#-catatan-metodologi-angka) + label provenans pada setiap angka + [daftar referensi bersumber](#-referensi) + keterlacakan fitur → masalah → invarian di [§2.5](#25-ringkasan-keterlacakan-fitur) + [§3.7](#37-batas-klaim-dampak--apa-yang-belum-bisa-dikatakan) batas klaim yang dinyatakan terbuka + [**§9**](#-9-api-documentation) dokumentasi 41 endpoint beserta [katalog kode kesalahan](#99-katalog-kode-kesalahan) dan [§9.11](#911-cors-dan-batasan) batasan API yang dinyatakan |
 
 ---
 
