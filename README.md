@@ -67,6 +67,8 @@
   - [3.7 Batas Klaim Dampak](#37-batas-klaim-dampak--apa-yang-belum-bisa-dikatakan)
   - [3.8 Ringkasan Dampak](#38-ringkasan-dampak--sdg--gap--fitur--metrik--status)
 - [📸 4. Demo & Screenshot](#-4-demo--screenshot)
+  - [4.1 Tautan Hasil Karya](#41-tautan-hasil-karya)
+  - [4.2 Screenshot per Use Case](#42-screenshot-per-use-case)
 - [🛠️ 5. Teknologi](#️-5-teknologi)
   - [5.1 Tech Stack](#51-tech-stack)
   - [5.2 Alasan Pemilihan Teknologi](#52-alasan-pemilihan-teknologi)
@@ -1886,11 +1888,146 @@ Enam angka ini muncul di layar, dihitung dari data koperasi itu sendiri, dan **k
 
 ## 📸 4. Demo & Screenshot
 
-> 🚧 **Belum diisi.** Bagian ini akan memuat:
->
-> - **Link website** — tautan hasil karya yang sudah di-*hosting*
-> - **Screenshot & demo fitur** — satu tangkapan layar per *use case* beserta penjelasannya
-> - **Video demo** — video penuh dengan *voice over*
+Bab ini memuat tiga hal: **tautan hasil karya yang sudah di-*hosting***, **video demo penuh**, dan **satu tangkapan layar per *use case*** beserta penjelasan singkatnya.
+
+> **Cara membaca bab ini.** Setiap tangkapan layar di bawah diambil dari aplikasi yang berjalan, bukan dari mockup desain. Angka yang terlihat di dalamnya berasal dari satu koperasi demo — **KUD Tani Makmur Subang** (Jalancagak, Subang, Jawa Barat) — dan berstatus **ASUMSI** menurut [Catatan Metodologi Angka](#-catatan-metodologi-angka). Yang dibuktikan tangkapan layar ini adalah **perilaku sistemnya**, bukan besaran angkanya.
+
+---
+
+### 4.1 Tautan Hasil Karya
+
+| Keluaran | Tautan | Catatan |
+|---|---|---|
+| 🌐 **Website** | **https://terrion.vercel.app** | Akun pembeli bisa didaftarkan sendiri lewat `/signup`; akun kader dan pengurus koperasi **dibuat operator**, sesuai keputusan inklusi di [§1.7.1](#171-segmentasi-pengguna--lima-peran-tiga-tingkat-beban) |
+| 🎬 **Video demo** | **[Tonton di Google Drive](https://drive.google.com/file/d/1W5jrouShH0PRxzMRpZHY8JXvMSaz3_AU/view?usp=sharing)** | Rekaman alur penuh seluruh fitur di aplikasi |
+
+#### Akun demo
+
+Karena akun kader dan pengurus koperasi dibuat oleh operator — bukan lewat pendaftaran mandiri — dua akun berikut disediakan agar penilai bisa langsung masuk ke ruang kerja koperasi maupun ke sisi pembeli.
+
+| Peran | Surel | Kata sandi |
+|---|---|---|
+| **Pengurus koperasi** | `pengurus@terrion.test` | `terrion-demo-2026` |
+| **Pembeli institusi** | `pembeli@terrion.test` | `terrion-demo-2026` |
+
+> Layanan yang menopang tautan di atas — beserta status *hosting* ketiga repositorinya — didokumentasikan terpisah di [§7.0 Layanan yang Sudah Berjalan](#70-layanan-yang-sudah-berjalan).
+
+---
+
+### 4.2 Screenshot per Use Case
+
+Sembilan layar, diurutkan mengikuti **perjalanan penggunanya** — dari pintu publik yang tidak menuntut akun, masuk ke ruang kerja koperasi, lalu keluar lagi ke sisi pembeli.
+
+| # | Layar | Rute | Peran | Fitur |
+|:--:|---|---|---|:--:|
+| 4.2.1 | [Landing Page](#421--landing-page) | `/` | Publik | [T1](#t1--antarmuka-publik--halaman-muka-dan-atlas) |
+| 4.2.2 | [Dashboard Pengurus Koperasi](#422--dashboard-pengurus-koperasi) | `/dashboard` | Kader · Pengurus | [F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) · [F3](#f3--proyeksi-12-minggu-deteksi-tabrakan-panen--saran-penggeseran) |
+| 4.2.3 | [Visualisasi Lahan Petani](#423--visualisasi-lahan-petani) | `/plots/[id]` | Kader · Pengurus | [F1](#f1--pencatatan-blok-tanam-empat-isian--fondasi-seluruh-sistem) · [F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) · [F7](#f7--halaman-lahan-publik-tanpa-akun) |
+| 4.2.4 | [Atlas](#424--atlas) | `/atlas` | Publik | [T1](#t1--antarmuka-publik--halaman-muka-dan-atlas) |
+| 4.2.5 | [Rencana Tanam](#425--rencana-tanam) | `/rencana` | Pengurus menulis · kader membaca | [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) |
+| 4.2.6 | [Pembelian Kelompok](#426--pembelian-kelompok) | `/purchases` | Pengurus menulis · kader membaca | [F4](#f4--rdkk-otomatis--agregasi-pupuk-kelompok) |
+| 4.2.7 | [Pembelian Kelompok (RDKK)](#427--pembelian-kelompok-rdkk) | `/purchases/rdkk` | Kader · Pengurus | [F4](#f4--rdkk-otomatis--agregasi-pupuk-kelompok) |
+| 4.2.8 | [Manajemen Permintaan Pembeli](#428--manajemen-permintaan-pembeli) | `/requests` | Pengurus | [F5](#f5--katalog-publik--kontrak-pasokan-pra-panen) |
+| 4.2.9 | [Katalog Pembeli](#429--katalog-pembeli) | `/catalog` | Publik · Pembeli | [F5](#f5--katalog-publik--kontrak-pasokan-pra-panen) |
+
+<a id="421--landing-page"></a>
+
+#### 4.2.1 · Landing Page
+
+<div align="center">
+  <img src="./assets/ss/landing.jpeg" alt="Halaman muka Terrion" width="100%" />
+  <p><em>Gambar 4.1: Halaman muka <code>/</code></em></p>
+</div>
+
+Halaman muka adalah pintu publik Terrion — bisa dibuka siapa pun tanpa akun. Isinya pernyataan posisi produk dalam satu kalimat, peta kepulauan Indonesia sebagai latar, ringkasan cakupan koperasi yang sudah tercatat di dalam sistem, contoh isian yang harus dikerjakan kader lapangan beserta perkiraan waktunya, dan dua pintu masuk ke bagian publik lainnya: katalog pasokan dan atlas.
+
+<a id="422--dashboard-pengurus-koperasi"></a>
+
+#### 4.2.2 · Dashboard Pengurus Koperasi
+
+<div align="center">
+  <img src="./assets/ss/doashboard-pengurus-koperasi.jpeg" alt="Dashboard koperasi" width="100%" />
+  <p><em>Gambar 4.2: Dasbor <code>/dashboard</code></em></p>
+</div>
+
+Dasbor adalah layar kerja utama pengurus koperasi. Di bagian atas berjajar kartu ringkas kondisi koperasi — proyeksi panen, puncak tonase, jumlah lahan aktif, dan agregasi kebutuhan pupuk. Di tengahnya ada grafik proyeksi panen dua belas minggu ke depan yang digambar sebagai rentang, dengan penanda khusus pada minggu yang melewati kapasitas koperasi. Di bawahnya, peringatan penumpukan panen muncul lengkap dengan saran penggeseran tanam yang bisa langsung diterapkan, disusul ringkasan panen sepekan ke depan dan kebutuhan pupuk kelompok.
+
+<a id="423--visualisasi-lahan-petani"></a>
+
+#### 4.2.3 · Visualisasi Lahan Petani
+
+<div align="center">
+  <img src="./assets/ss/visualisasi-lahan-petani.jpeg" alt="Layar lahan Terrion" width="100%" />
+  <p><em>Gambar 4.3: Layar lahan <code>/plots/[id]</code></em></p>
+</div>
+
+Layar lahan menampilkan satu kebun anggota sebagai petak bergambar, bukan sebagai tabel. Tiap blok tanam digambar mengikuti komoditas dan fase pertumbuhannya, sehingga isi lahan bisa dibaca tanpa perlu terbiasa membaca angka. Panel kiri merangkum luas lahan, jumlah blok, perkiraan hasil, dan kode publik lahan yang bisa dibagikan ke pemiliknya. Penggeser waktu di bagian bawah membuat lahan dapat dilihat pada tanggal mana pun, termasuk tanggal di masa depan. Mengetuk satu blok membuka panel detailnya beserta tombol untuk mencatat panen, memecah blok, atau memperbaiki data yang salah tercatat.
+
+<a id="424--atlas"></a>
+
+#### 4.2.4 · Atlas
+
+<div align="center">
+  <img src="./assets/ss/atlas.jpeg" alt="Atlas pasokan Terrion" width="100%" />
+  <p><em>Gambar 4.4: Atlas <code>/atlas</code></em></p>
+</div>
+
+Atlas adalah peta pasokan nasional yang terbuka untuk publik. Peta diwarnai menurut proyeksi pasokan tiap provinsi dan dapat ditelusuri berlapis, dari Indonesia turun ke provinsi, kabupaten, koperasi, hingga lahan. Panel kiri merangkum cakupan yang tercatat, memecahnya per komoditas dan per provinsi, sementara penggeser di bawah peta memutar tampilan melewati dua belas minggu ke depan sehingga pertanyaan tentang siapa yang panen pada minggu tertentu bisa dijawab secara geografis.
+
+<a id="425--rencana-tanam"></a>
+
+#### 4.2.5 · Rencana Tanam
+
+<div align="center">
+  <img src="./assets/ss/rencana-tanam.jpeg" alt="Detail rencana tanam" width="100%" />
+  <p><em>Gambar 4.5: Rencana tanam <code>/rencana</code></em></p>
+</div>
+
+Rencana tanam adalah layar tempat pengurus menyusun musim berikutnya sebelum musim itu dimulai — siapa menanam apa, seluas berapa, dan mulai kapan. Bagian atas menampilkan keadaan rencana beserta apa yang dioptimalkan dan apa yang dikorbankan oleh rencana tersebut, diikuti ringkasan penugasan, blok tanam yang dihasilkan, luas, komoditas, dan catatan anggota yang melewati batas subsidi. Di bawahnya, sebaran panen ditampilkan per bulan dan per komoditas, disertai keterangan bahwa perhitungannya berpijak pada normal iklim karena cuaca musim depan belum terjadi.
+
+<a id="426--pembelian-kelompok"></a>
+
+#### 4.2.6 · Pembelian Kelompok
+
+<div align="center">
+  <img src="./assets/ss/pembelian-kelompok.jpeg" alt="Pembelian kelompok" width="100%" />
+  <p><em>Gambar 4.6: Pembelian kelompok <code>/purchases</code></em></p>
+</div>
+
+Layar pembelian kelompok merangkum kebutuhan pupuk seluruh anggota untuk satu musim, diagregasi otomatis dari blok tanam yang sudah tercatat. Isinya proporsi alokasi dan rincian kuantitas untuk tiap jenis pupuk, baik dalam satuan karung maupun kebutuhan murninya, ditambah daftar anggota yang luasnya melewati batas pupuk bersubsidi. Dari layar ini pengurus dapat membuat satu pesanan kelompok, membuka rincian RDKK per anggota, atau mengekspor formulir cetaknya.
+
+<a id="427--pembelian-kelompok-rdkk"></a>
+
+#### 4.2.7 · Pembelian Kelompok (RDKK)
+
+<div align="center">
+  <img src="./assets/ss/pembelian-kelompok-rdkk.jpeg" alt="Formulir RDKK siap cetak" width="100%" />
+  <p><em>Gambar 4.7: Ekspor RDKK <code>/purchases/rdkk</code></em></p>
+</div>
+
+Layar ini menghasilkan Rencana Definitif Kebutuhan Kelompok dalam bentuk formulir resmi yang siap dicetak atau disimpan sebagai PDF. Susunannya mengikuti format yang diserahkan ke penyuluh: identitas kelompok dan wilayah di bagian kepala, tabel anggota beserta luas dan kebutuhan tiap jenis pupuk di tengah, baris jumlah, keterangan bagi anggota yang melewati batas subsidi, daftar acuan dosis yang dipakai, dan blok tanda tangan penyuluh serta ketua kelompok di bagian bawah.
+
+<a id="428--manajemen-permintaan-pembeli"></a>
+
+#### 4.2.8 · Manajemen Permintaan Pembeli
+
+<div align="center">
+  <img src="./assets/ss/management-permintaan-pembeli.jpeg" alt="Manajemen permintaan pasokan" width="100%" />
+  <p><em>Gambar 4.8: Permintaan pasokan <code>/requests</code></em></p>
+</div>
+
+Layar permintaan pasokan adalah tempat pengurus memutuskan pengajuan kontrak yang masuk dari pembeli institusi. Kartu di bagian atas meringkas jumlah permintaan menurut statusnya, sementara tabel di bawahnya memuat komoditas, nama pembeli, volume, jendela panen, dan status tiap pengajuan. Permintaan yang masih menunggu dilengkapi tombol terima dan tolak, dan riwayat keputusan sebelumnya tetap tersimpan di daftar yang sama.
+
+<a id="429--katalog-pembeli"></a>
+
+#### 4.2.9 · Katalog Pembeli
+
+<div align="center">
+  <img src="./assets/ss/katalog-pembeli.jpeg" alt="Katalog pasokan panen" width="100%" />
+  <p><em>Gambar 4.9: Katalog <code>/catalog</code></em></p>
+</div>
+
+Katalog adalah etalase pasokan panen yang akan datang, dibuka untuk publik dan dipakai pembeli institusi untuk mencari pasokan langsung ke koperasi. Bagian atas menyediakan saringan berdasarkan kata kunci, komoditas, provinsi, minggu panen, dan volume minimum. Hasilnya ditampilkan sebagai kartu per pasokan yang memuat komoditas, varietas, koperasi penyedia, lokasi, estimasi pasokan, minggu panen, dan porsi kapasitas koperasi yang terpakai — masing-masing dengan tombol untuk mengajukan permintaan yang kemudian diputuskan pengurus koperasi.
 
 ---
 
@@ -6336,8 +6473,8 @@ Dinyatakan terbuka, sesuai [Catatan Metodologi Angka](#-catatan-metodologi-angka
 |---|:--:|---|
 | **Kesesuaian Tema & Subtema** | 20% | [§1.3](#13-keterkaitan-permasalahan-dengan-sdgs) — keterkaitan **masalah** dengan SDG 8, 9, dan 11 pada target spesifik; [**Bab 3**](#-3-dampak-solusi-terhadap-sdgs) — dampak **solusi** dengan mekanisme, metrik, baseline, dan **status bukti** per target, termasuk ko-manfaat yang dinyatakan tetapi tidak diklaim; [§3.6](#36-inklusivitas-sebagai-keputusan-arsitektur-bukan-kata-sifat) — inklusivitas sebagai delapan keputusan arsitektur (2 akun untuk 47 anggota), bukan kata sifat |
 | **Inovasi & Orisinalitas Ide** | 20% | [§1.2](#12-gap-analysis) — pemetaan terhadap enam solusi yang sudah ada; [§1.8.3](#183-empat-pembeda-yang-tidak-dimiliki-solusi-sekelasnya) — empat pembeda; [§1.8.5](#185-peta-persepsi-perceptual-map) — peta persepsi dengan kuadran kosong; [§2.3 F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) dan [efek pengungkitnya](#efek-pengungkit) |
-| **Fungsionalitas Website** | 20% | [§1.5.5](#155-matriks-keselarasan--masalah--solusi--fitur--bukti) — matriks keselarasan; [§2.3](#23-fitur-utama) — tujuh fitur utama, masing-masing ditutup **mekanisme pembukti** yang benar-benar menolak; [§3.8](#38-ringkasan-dampak--sdg--gap--fitur--metrik--status) — metrik dampak yang benar-benar dihitung produk; [**§10.6**](#106-uji-yang-mengunci-invarian) — setiap invarian yang diklaim punya uji yang benar-benar gagal bila dilanggar |
-| **UI/UX & Responsivitas** | 15% | [§1.7.2](#172-profil-unit-target-koperasi-bukan-petani) — lebar 360 px sebagai target utama; [§2.4 T5](#t5--aksesibilitas--responsivitas) dan [T7](#t7--navigasi--percepatan-kerja) |
+| **Fungsionalitas Website** | 20% | [**§4.1**](#41-tautan-hasil-karya) — **tautan hasil karya yang sudah di-*hosting* dan video demo penuh**; [§4.2](#42-screenshot-per-use-case) — sembilan *use case* yang benar-benar berjalan, satu tangkapan layar masing-masing; [§1.5.5](#155-matriks-keselarasan--masalah--solusi--fitur--bukti) — matriks keselarasan; [§2.3](#23-fitur-utama) — tujuh fitur utama, masing-masing ditutup **mekanisme pembukti** yang benar-benar menolak; [§3.8](#38-ringkasan-dampak--sdg--gap--fitur--metrik--status) — metrik dampak yang benar-benar dihitung produk; [**§10.6**](#106-uji-yang-mengunci-invarian) — setiap invarian yang diklaim punya uji yang benar-benar gagal bila dilanggar |
+| **UI/UX & Responsivitas** | 15% | [**§4.2**](#42-screenshot-per-use-case) — **sembilan layar sebagaimana benar-benar tampil**, termasuk [lahan yang digambar alih-alih ditabelkan](#423--visualisasi-lahan-petani) untuk pengguna yang tidak terbiasa membaca tabel; [§1.7.2](#172-profil-unit-target-koperasi-bukan-petani) — lebar 360 px sebagai target utama; [§2.4 T5](#t5--aksesibilitas--responsivitas) dan [T7](#t7--navigasi--percepatan-kerja) |
 | **Implementasi Teknologi** | 15% | [§1.5.6](#156-kenapa-solusinya-berbentuk-begini--lima-keputusan-yang-menentukan) — lima keputusan rancangan; [§2.3 F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) dan [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama); [§2.4 T4](#t4--keamanan--isolasi-data) dan [T6](#t6--ketahanan-sistem); [**§5.2**](#52-alasan-pemilihan-teknologi) — alasan tiap teknologi beserta **alternatif yang ditolak**, [sepuluh ADR](#524-sepuluh-adr--keputusan-arsitektur-yang-tertulis), [analisis radius ledakan](#523-kenapa-tiga-layanan-bukan-satu--dan-di-mana-garis-potongnya), dan [§5.2.6](#526-teknologi-yang-sengaja-tidak-dipakai) teknologi yang sengaja tidak dipakai |
 | **Dokumentasi & Repositori** | 10% | [Catatan Metodologi Angka](#-catatan-metodologi-angka) + label provenans pada setiap angka + [daftar referensi bersumber](#-referensi) + keterlacakan fitur → masalah → invarian di [§2.5](#25-ringkasan-keterlacakan-fitur) + [§3.7](#37-batas-klaim-dampak--apa-yang-belum-bisa-dikatakan) batas klaim yang dinyatakan terbuka + [**§9**](#-9-api-documentation) dokumentasi 41 endpoint beserta [katalog kode kesalahan](#99-katalog-kode-kesalahan) dan [§9.11](#911-cors-dan-batasan) batasan API yang dinyatakan |
 
