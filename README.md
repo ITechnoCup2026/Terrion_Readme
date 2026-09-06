@@ -87,6 +87,13 @@
   - [9.10 Contoh Pemakaian](#910-contoh-pemakaian)
   - [9.11 CORS dan Batasan](#911-cors-dan-batasan)
 - [🧪 10. Testing](#-10-testing)
+  - [10.1 Running Tests](#101-running-tests)
+  - [10.2 Test Coverage](#102-test-coverage)
+  - [10.3 Sebaran Uji](#103-sebaran-uji)
+  - [10.4 Kenapa Uji Berjalan Tanpa Infrastruktur](#104-kenapa-uji-bisa-berjalan-tanpa-docker-tanpa-basis-data-dan-tanpa-kunci-api)
+  - [10.5 Jenis Uji yang Ada](#105-jenis-uji-yang-ada--dan-yang-tidak)
+  - [10.6 Uji yang Mengunci Invarian](#106-uji-yang-mengunci-invarian)
+  - [10.7 Yang Belum Ada](#107-yang-belum-ada)
 - [🧭 Peta Dokumen ke Rubrik Penilaian](#-peta-dokumen-ke-rubrik-penilaian)
 - [📖 Referensi](#-referensi)
 - [📄 Lisensi](#-lisensi)
@@ -1610,7 +1617,7 @@ Tabel ini adalah **kontrak keselarasan** bab ini: setiap rumusan masalah punya f
 | **Inovasi & Orisinalitas Ide** | 20% | **F6** dan [efek pengungkitnya](#efek-pengungkit) — fitur yang menyalakan lima fitur lama tanpa mengubah kodenya; **F3** saran penggeseran konkret; **T3** kejujuran sebagai kategori pembeda |
 | **Fungsionalitas Website** | 20% | Ketujuh kartu fitur ditutup **mekanisme pembukti** — invarian yang benar-benar menolak, bukan daftar fitur yang dijanjikan |
 | **UI/UX & Responsivitas** | 15% | **T5** lebar 360 px sebagai target utama, `R10` warna bukan satu-satunya penanda, keadaan kosong bergaya; **T7** navigasi dan percepatan kerja |
-| **Implementasi Teknologi** | 15% | **F2** pemilihan model beserta bukti pembandingnya; **F6** determinisme struktural dan pemutus arus; **T4** keamanan berlapis; **T6** ketahanan |
+| **Implementasi Teknologi** | 15% | **F2** pemilihan model beserta bukti pembandingnya; **F6** determinisme struktural dan pemutus arus; **T4** keamanan berlapis; **T6** ketahanan; [**§10**](#-10-testing) — **1.295 uji lulus**, coverage terukur, dan suite yang berjalan tanpa Docker maupun kunci API |
 | **Dokumentasi & Repositori** | 10% | Setiap fitur dipetakan ke rumusan masalah, aturan desain `R1`–`R10`, dan prinsip `P1`–`P7` — bukan daftar tanpa alasan |
 
 ---
@@ -4175,7 +4182,321 @@ try {
 
 ## 🧪 10. Testing
 
-> 🚧 **Belum diisi.**
+**Seluruh angka di bab ini dijalankan sungguhan pada 6 September 2026**, bukan disalin dari dokumen. Perintahnya ada di [§10.1](#101-running-tests) dan bisa dijalankan ulang siapa pun — termasuk juri.
+
+```
+Terrion_Backend   482 uji Go        17 paket   LULUS   ~14 detik
+Terrion_Frontend  729 uji Vitest    74 berkas  LULUS   10,60 detik
+Terrion_AI         84 uji pytest    10 berkas  LULUS   11,23 detik
+─────────────────────────────────────────────────────────────────
+TOTAL           1.295 uji                      LULUS   ~36 detik
+```
+
+> **Tanpa Docker, tanpa basis data, tanpa kunci API.** Ketiga suite berjalan di mesin kosong — itu keputusan yang dijelaskan di [§10.4](#104-kenapa-uji-bisa-berjalan-tanpa-docker-tanpa-basis-data-dan-tanpa-kunci-api), dan alasannya bukan kenyamanan.
+
+---
+
+### 10.1 Running Tests
+
+#### Backend — Go
+
+```bash
+cd Terrion_Backend
+
+# Seluruh suite
+go test ./...
+
+# Dengan coverage
+go test ./... -coverprofile=cover.out
+go tool cover -func=cover.out          # ringkasan per fungsi
+go tool cover -html=cover.out          # laporan HTML
+
+# Satu paket saja
+go test ./internal/agronomy/ -v
+
+# Satu uji, tanpa cache
+go test ./internal/planning/ -run TestSearchIsDeterministic -count=1
+```
+
+#### Frontend — Vitest
+
+```bash
+cd Terrion_Frontend
+pnpm install
+
+pnpm test                              # sekali jalan  (vitest run)
+pnpm test:watch                        # mode tonton
+
+pnpm vitest run lib/agronomy           # satu direktori
+pnpm vitest run -t "conserves"         # satu nama uji
+```
+
+#### AI Service — pytest
+
+```bash
+cd Terrion_AI
+python -m venv .venv && .venv/Scripts/activate    # Linux/macOS: source .venv/bin/activate
+pip install -e ".[dev]"
+
+pytest -q                              # seluruh suite
+pytest tests/test_solver_determinism.py -v
+pytest -q --cov=app --cov-report=term  # butuh pytest-cov (lihat 10.7)
+```
+
+#### Lint
+
+```bash
+cd Terrion_Frontend && pnpm lint       # ESLint 9 + eslint-config-next
+cd Terrion_AI       && ruff check .    # line-length 100, target py312
+cd Terrion_Backend  && go vet ./...
+```
+
+---
+
+### 10.2 Test Coverage
+
+#### Backend — Go
+
+```
+Statements (seluruh modul)                 : 58.9%
+Statements (tanpa cmd/ dan lapis tampilan) : ~87%
+```
+
+| Paket | Coverage | Catatan |
+|---|:--:|---|
+| `internal/delivery/http/middleware` | **100.0%** | Penegakan peran dan cron — jalur keamanan |
+| `internal/entity` | **100.0%** | — |
+| `internal/rdkk` | **99.0%** | Agregasi pupuk yang menghasilkan formulir bertanda tangan |
+| `internal/dashboard` | **98.4%** | — |
+| `internal/delivery/http/route` | **97.8%** | Tabel rute beserta peran tiap endpoint |
+| `internal/plots` | **97.3%** | — |
+| `internal/planning` | **95.5%** | Solver *fallback* |
+| `internal/catalog` | **95.1%** | — |
+| `internal/agronomy` | **94.8%** | **Mesin yang menerbitkan setiap angka di produk** |
+| `internal/weather` | **94.2%** | — |
+| `internal/aiclient` | **83.3%** | Anonimisasi, kontrak, *breaker* |
+| `internal/config` | **77.9%** | — |
+| `internal/supabase` | **73.3%** | — |
+| `internal/usecase` | **73.2%** | 150 uji; sisanya jalur galat basis data |
+| `internal/repository` | **17.8%** | **Sengaja rendah** — lihat di bawah |
+| `cmd/register` | 27.1% | Validasi argumen; sisanya I/O |
+| `cmd/web` · `migrate` · `seed` · `plan` | 0% | Titik masuk proses |
+| `internal/delivery/http` (controller) | 0% | Lapis tipis: parse → usecase → bungkus |
+| `internal/model/converter` | 0% | Fungsi murni entity → response |
+
+> **Kenapa `repository` hanya 17,8% dan itu bukan kelalaian.** Repositori adalah lapis yang **tidak punya keputusan** — ia menjalankan kueri GORM dan mengembalikan baris. Mengujinya berarti menguji GORM. Yang diuji adalah **yang memakainya**: 150 uji `usecase` menjalankan repositori sungguhan di atas SQLite murni-Go, sehingga kueri yang salah gagal di sana — di tempat konsekuensinya terlihat.
+>
+> **Angka 58,9% adalah angka yang jujur; angka ~87% adalah angka yang berguna.** Keduanya dilaporkan. Membuang `cmd/` dan lapis tampilan dari perhitungan lalu melaporkan satu angka tinggi adalah cara paling umum membuat coverage terlihat bagus tanpa menguji apa pun yang baru.
+
+#### Frontend — Vitest (target v8, cakupan `lib/**`)
+
+```
+Statements   : 67.35%  ( 1634/2426 )
+Branches     : 66.45%  (  820/1234 )
+Functions    : 72.66%  (  404/556  )
+Lines        : 68.68%  ( 1362/1983 )
+```
+
+Tanpa modul I/O (`*/load.ts`), *renderer* kanvas, dan sesi — yaitu **modul yang berisi keputusan**:
+
+```
+Statements   : 87.42%  ( 1634/1869 )
+Branches     : 86.49%  (  820/948  )
+Functions    : 88.98%  (  404/454  )
+Lines        : 87.70%  ( 1362/1553 )
+```
+
+| Modul | Statements | Catatan |
+|---|:--:|---|
+| `lib/agronomy` | **95.94%** | Sisi-baca mesin agronomi |
+| `lib/catalog/listings.ts` | **97.56%** | — |
+| `lib/canvas/timeline.ts` | **92.50%** | Penggeser waktu |
+| `lib/canvas/hittest.ts` | **90.90%** | Klik blok di kanvas |
+| `lib/api/client.ts` | **87.27%** | Satu-satunya pintu HTTP |
+| `lib/canvas/renderer.ts` | 0% | **Menggambar ke `CanvasRenderingContext2D`** — tidak ada yang bisa diperiksa selain piksel |
+| `lib/*/load.ts` | 0% | Pemanggilan `apiFetch` tanpa cabang; diuji lewat `client.ts` |
+
+#### AI Service — pytest-cov
+
+```
+TOTAL   750 statements   48 miss   94%
+```
+
+| Modul | Coverage |
+|---|:--:|
+| `app/agent/facts.py` | **100%** |
+| `app/agent/guard.py` | **100%** — penjaga numerik |
+| `app/problem.py` | **100%** |
+| `app/security.py` | **100%** |
+| `app/solver/greedy.py` · `metrics.py` · `objectives.py` | **100%** |
+| `app/config.py` · `app/logging.py` | **100%** |
+| `app/agent/intent.py` | 96% |
+| `app/contracts/v1.py` | 96% |
+| `app/risk/montecarlo.py` | 96% |
+| `app/agent/explain.py` | 95% |
+| `app/solver/cpsat.py` | 92% |
+| `app/solver/__init__.py` | 90% |
+| `app/main.py` | 86% |
+| `app/agent/providers.py` | 81% — sisanya jalur galat penyedia LLM |
+
+> **1.002 baris uji untuk 2.072 baris kode.** Repo terkecil punya rasio uji tertinggi, dan itu bukan kebetulan: ia satu-satunya layanan yang **boleh mati**, jadi satu-satunya jaminan yang tersisa adalah bahwa ketika ia hidup, ia benar.
+
+---
+
+### 10.3 Sebaran Uji
+
+#### Backend — 482 uji
+
+| Paket | Uji | Yang dijaga |
+|---|:--:|---|
+| `usecase` | **150** | Alur bisnis, batas transaksi, **dinding antar-koperasi** |
+| `agronomy` | **94** | GDD, prediksi, kalibrasi, hasil, tabrakan, penggeseran, dampak |
+| `rdkk` | 37 | Agregasi pupuk, batas 2 ha, ekspor formulir |
+| `planning` | 34 | Musim, iklim, simulasi, skor, pencarian |
+| `supabase` | 24 | GoTrue + verifikasi JWT |
+| `dashboard` | 23 | Deret proyeksi, minggu berisiko, panen mendatang |
+| `plots` | 22 | Blok, saudara, ringkasan |
+| `aiclient` | 21 | **Anonimisasi, kontrak, breaker, anggaran** |
+| `delivery` | 16 | Middleware peran dan cron, tabel rute |
+| `weather` | 14 | Grid 0,25°, normals, klien Open-Meteo |
+| `config` | 13 | Muat konfigurasi, gerbang startup |
+| `repository` | 12 | Kueri yang punya logika sendiri |
+| `cmd/register` | 10 | Validasi argumen CLI |
+| `catalog` | 8 | Perakitan listing |
+| `entity` · `model` | 4 | Pemetaan dan amplop |
+
+#### Frontend — 729 uji di 74 berkas
+
+| Modul | Berkas | Yang dijaga |
+|---|:--:|---|
+| `lib/planning` | 10 | Filter, ringkasan, musim, token berbagi |
+| `lib/agronomy` | 9 | Sisi-baca GDD, prediksi, tabrakan, dampak |
+| `lib/schemas` | 7 | **10 skema Zod** — dipakai klien dan divalidasi ulang di Server Action |
+| `lib/canvas` | 5 | Hit-test, frame, timeline, kamera |
+| `lib/rdkk` | 5 | Agregasi, label, status, ekspor |
+| `lib/nav` | 5 | Menu per peran, breadcrumb, mode imersif |
+| `lib/dashboard` | 4 | Deret, lead, panen mendatang |
+| `lib/auth` · `lib/atlas` · `lib/plots` | 3 tiap | Peran, kamera peta, saringan lahan |
+| `lib/terrain` · `lib/catalog` · `lib/format` | 2 tiap | Autotile, listing, format angka |
+| 8 modul lain | 1 tiap | — |
+
+#### AI — 84 uji di 10 berkas
+
+| Berkas | Uji | Yang dijamin — **nama berkasnya adalah jaminannya** |
+|---|:--:|---|
+| `test_endpoint.py` | 15 | Kontrak HTTP, autentikasi, penolakan |
+| `test_guard.py` | 12 | **Penjaga numerik menangkap angka yang dikarang** |
+| `test_narration.py` | 10 | Narasi, sumbernya, dan degradasinya |
+| `test_intent.py` | 8 | Terjemahan tujuan → bobot |
+| `test_cpsat.py` | 7 | Solver CP-SAT |
+| `test_metrics.py` | 6 | Metrik satu rencana |
+| `test_contract_golden.py` | 4 | **Kontrak tidak menyimpang dari berkas emas** |
+| `test_no_personal_data.py` | 4 | **Tidak ada data pribadi di muatan** |
+| `test_llm_budget.py` | 3 | Anggaran waktu ditegakkan |
+| `test_solver_determinism.py` | 3 | **Masukan sama → keluaran sama** |
+
+---
+
+### 10.4 Kenapa Uji Bisa Berjalan Tanpa Docker, Tanpa Basis Data, dan Tanpa Kunci API
+
+Tiga keputusan yang membuatnya mungkin. Ketiganya punya biaya, dan ketiganya dibayar dengan sadar.
+
+| Keputusan | Bagaimana | Kenapa penting |
+|---|---|---|
+| **SQLite murni-Go untuk uji** | `glebarez/sqlite` — **tanpa cgo** | `go test ./...` jalan di mesin mana pun tanpa toolchain C. Alternatifnya `mattn/go-sqlite3` (butuh cgo) atau `testcontainers` (butuh Docker berjalan) |
+| **Redis in-process** | `alicebob/miniredis` | Uji sesi dan cache berjalan tanpa satu pun proses tambahan |
+| **`LLM_PROVIDER=template` sebagai bawaan** | Narasi dirakit dari fakta terhitung dengan f-string | Repo AI **berjalan penuh, lulus seluruh uji, dan bisa didemokan tanpa satu pun kunci API**. Kunci hanya menaikkan kualitas kalimat, tidak pernah mengubah angka |
+
+**Konsekuensi yang menentukan:** juri yang meng-*clone* repo bisa menjalankan `go test ./...`, `pnpm test`, dan `pytest -q` **dalam tiga menit sejak clone**, tanpa menyiapkan apa pun. Suite uji yang menuntut infrastruktur adalah suite uji yang tidak akan dijalankan orang lain — dan uji yang tidak dijalankan orang lain bukan bukti apa pun.
+
+---
+
+### 10.5 Jenis Uji yang Ada — dan yang Tidak
+
+| Jenis | Ada? | Bentuknya di Terrion |
+|---|:--:|---|
+| **Unit** | ✅ | Mayoritas. Mesin domain Go dan `lib/` frontend menerima nilai dan mengembalikan nilai |
+| **Integrasi** | ✅ | 150 uji `usecase` menjalankan repositori sungguhan di atas SQLite; `aiclient/integration_test.go` menjalankan jalur penuh terhadap peladen palsu |
+| **Kontrak** | ✅ | **Berkas JSON emas kembar** — uji Go membandingkan hasil marshal, uji Python mem-*parse* berkas yang sama |
+| **Determinisme** | ✅ | `test_solver_determinism.py` dan pemecah seri di Go |
+| **Keamanan / privasi** | ✅ | `TestRequestCarriesNoPersonalData` + `test_no_personal_data.py` |
+| **Snapshot** | ❌ | Tidak dipakai — snapshot mengunci tampilan, bukan perilaku |
+| **E2E (Playwright/Cypress)** | ❌ | **Belum ada.** Digantikan `TESTING.md`, panduan uji manual bertahap |
+| **Uji beban** | ❌ | Belum ada |
+| **CI otomatis** | ❌ | **Belum ada** `.github/workflows` di ketiga repo — lihat [§10.7](#107-yang-belum-ada) |
+
+#### Panduan uji manual — `Terrion_Backend/TESTING.md`
+
+Sebagai ganti E2E otomatis, ada panduan yang menuntun satu orang menguji seluruh sistem dari menyiapkan `.env` sampai menyentuh setiap tombol dan **setiap penolakan**. Sepuluh alur, masing-masing berbentuk sama:
+
+> **Konsep** — apa fitur ini dan kenapa ada
+> **Uji** — apa yang diklik, isi field apa
+> **Harus terlihat** — hasil yang benar
+> **Edge case** — apa yang sengaja dibuat gagal, dan **pesan apa yang muncul**
+
+| Alur | Isi |
+|:--:|---|
+| A | Autentikasi |
+| B | Dasbor koperasi |
+| C | Lahan dan blok |
+| D | Catat panen dan kalibrasi model |
+| E | Deteksi tabrakan dan penggeseran tanam |
+| F | RDKK dan pembelian sarana produksi |
+| G | Katalog dan permintaan pasokan |
+| H | Atlas dan halaman lahan publik |
+| I | Rencana Tanam Musim Depan |
+| J | Cron cuaca |
+
+> Bagian *Edge case* itulah yang membuat **jalur gagal ikut bisa didemokan**: mencatat panen dengan tanggal besok menghasilkan kalimat yang berbeda dari mencatat panen yang sudah pernah dicatat, dan keduanya ada di panduan beserta kalimatnya.
+
+---
+
+### 10.6 Uji yang Mengunci Invarian
+
+Ini bagian yang menjawab pertanyaan *"apa gunanya 1.295 uji?"*. Setiap invarian yang diklaim di [Bab 2](#-2-penjelasan-fitur) punya uji yang **benar-benar gagal** kalau invariannya dilanggar.
+
+| Invarian yang diklaim | Uji yang menjaganya | Repo |
+|---|---|:--:|
+| **Total tonase kekal** saat disebar ke minggu ISO | `TestDetectCollisionsConservesTotalTonnage` · `TestDetectCollisionsSpreadsTonnageAcrossEveryWeekAWindowSpans` | Go |
+| **GDD tidak pernah negatif** — tanaman tidak mundur | `TestGddForDayNeverGoesNegative` · `TestAccumulateGddIsMonotonicWithOneEntryPerDay` | Go |
+| **Prediksi selalu rentang, tidak pernah titik** (`R2`) | `TestPredictHarvestReturnsWindowNeverPoint` | Go |
+| **Cuaca teramati mengalahkan ramalan** — GDD tidak menumpuk dua kali | `TestPredictHarvestNarrowsAsObservedWeatherReplacesClimatology` | Go |
+| **Shrinkage jujur pada data sedikit** — 2 panen tidak menggeser sejauh 20 | `TestPredictHarvestShrinksCalibrationWithFewObservations` · `TestFitYieldModelShrinksTowardCatalogueWithFewHarvests` | Go |
+| **Satu kolom konstan tidak meracuni model** | `TestFitYieldModelSurvivesAFeatureThatNeverVaries` | Go |
+| **Hasil panen tidak pernah negatif** | `TestPredictYieldPerHaNeverGoesNegative` | Go |
+| **Dampak harga ditimbang tonase** — blok 9 ton ≠ blok 1 ton | `TestPriceVsReferenceWeightsByTonnage` | Go |
+| **`null` ≠ `0`** pada ubin dampak (`R6`) | `TestInputCostSavedIsNilWhenNoOrderHasCompleted` · `TestInputCostSavedCountsCompletedOrdersOnly` · `TestDashboardLoadReportsNoImpactBeforeAnythingHasHappened` | Go |
+| **Penggeseran menolak blok yang sudah tertanam** | `TestDetectCollisionsSuggestsNothingWhenEveryContributorIsAlreadyPlanted` · `TestPlanStaggerRefusals` | Go |
+| **Puncak terburuk tidak pernah di bawah puncak harapan** | `TestMeasureWorstPeakIsNeverBelowExpectedPeak` | Go |
+| **Urutan deterministik** — saran tidak berubah tanpa sebab (`P4`) | `TestDemandByWeekIsOrderedDeterministically` · `test_solver_determinism.py` (3 uji) | Go + Py |
+| **Dinding antar-koperasi** | `TestDashboardLoadStaysInsideItsCooperative` · `TestHarvestHistoryIsScopedToTheCooperative` · `TestCapacityRefusesAnAccountWithoutACooperative` | Go |
+| **Tidak ada data pribadi menyeberang** (`P6`) | `TestRequestCarriesNoPersonalData` · `test_no_personal_data.py` (4 uji) | Go + Py |
+| **Kontrak dua repo tidak menyimpang** ([ADR-0010](#524-sepuluh-adr--keputusan-arsitektur-yang-tertulis)) | `TestProposeRequestMatchesTheGoldenFile` · `TestProposeResponseParsesFromTheGoldenFile` · `test_golden_request_parses` · `test_response_matches_the_golden_file` | Go + Py |
+| **Versi `MAJOR` tak cocok gagal berisik** ([ADR-0003](#524-sepuluh-adr--keputusan-arsitektur-yang-tertulis)) | `TestProposeRejectsAMismatchedContractMajor` · `test_a_major_version_mismatch_is_refused_loudly` | Go + Py |
+| **Pemutus arus** buka setelah 3 kegagalan, tutup 60 detik | `TestBreakerOpensAfterThreeConsecutiveFailures` · `TestBreakerHalfOpensAfterCooldown` · `TestBreakerForgetsFailuresAfterASuccess` · `TestProposeStopsCallingOnceTheBreakerIsOpen` | Go |
+| **Anggaran waktu dibayar sekali, bukan tiga kali** | `TestProposeSpendsOneBudgetForBothAttempts` · `TestProposeSkipsTheRetryWhenTheBudgetIsAlreadyGone` · `test_a_provider_that_hangs_costs_one_budget_not_three` | Go + Py |
+| **Penjaga numerik menangkap angka yang dikarang** (`P5`) | `test_guard.py` (12 uji) · `test_the_template_narrative_always_passes_its_own_guard` | Py |
+| **Kapasitas `null` menghapus baris, bukan menyetel nol** | `TestCapacitySaveClearsARowWhenTonnesAreOmitted` · `TestCapacityLoadListsEveryCommodityIncludingUnset` | Go |
+| **Horizon mengikuti yang diminta pemanggil** | `TestDashboardHorizonFollowsWhatTheCallerAsksFor` | Go |
+| **Harga acuan tidak mencampur komoditas** | `TestBenchmarkForIgnoresOtherCommodities` | Go |
+
+> **Nama uji di Terrion adalah kalimat, bukan label.** `TestGddForDayNeverGoesNegative` mengatakan apa yang dijamin; `TestGdd1` tidak mengatakan apa pun. Ketika sebuah uji gagal, **namanya yang muncul di layar** — dan nama yang baik memberi tahu apa yang rusak sebelum siapa pun membuka kodenya.
+
+---
+
+### 10.7 Yang Belum Ada
+
+Dinyatakan terbuka, sesuai [Catatan Metodologi Angka](#-catatan-metodologi-angka).
+
+| Celah | Keterangan | Yang dibutuhkan |
+|---|---|---|
+| **Belum ada CI** | Ketiga repo tidak punya `.github/workflows`. Uji dijalankan manual — dan itulah **kenapa berkas emas kembar sempat menyimpang** antara kedua repo | Satu workflow per repo yang menjalankan uji + lint pada tiap *push*, **plus satu langkah yang membandingkan kedua berkas emas dan gagal bila berbeda** |
+| **Alat coverage belum terpasang** | `@vitest/coverage-v8` tidak ada di `package.json`; `pytest-cov` tidak ada di `[project.optional-dependencies].dev`. Angka di [§10.2](#102-test-coverage) diukur dengan memasangnya **sementara**, lalu repo dikembalikan | Tambahkan keduanya sebagai *dev dependency* |
+| **Belum ada E2E otomatis** | Digantikan `TESTING.md` yang dijalankan manusia | Playwright untuk lima alur utama |
+| **Uji sentuh di ponsel belum tuntas** | Geser, perbesar, dan cubit sudah berfungsi | Sesi pengujian perangkat nyata |
+| **`lib/canvas/renderer.ts` 0%** | Ia menggambar ke `CanvasRenderingContext2D`; tidak ada yang bisa diperiksa selain piksel | Uji snapshot piksel — **belum jelas sepadan** |
+| **Belum ada uji beban** | Belum diukur berapa koperasi serentak yang tertahan satu instans | Skenario k6 pada jalur `propose` dan `dashboard` |
+| **Benchmark model bahasa bersampel kecil** | 12 narasi per model, satu berkas fikstur | Pengukuran ulang dengan data sungguhan |
 
 ---
 
@@ -4185,7 +4506,7 @@ try {
 |---|:--:|---|
 | **Kesesuaian Tema & Subtema** | 20% | [§1.3](#13-keterkaitan-permasalahan-dengan-sdgs) — keterkaitan **masalah** dengan SDG 8, 9, dan 11 pada target spesifik; [**Bab 3**](#-3-dampak-solusi-terhadap-sdgs) — dampak **solusi** dengan mekanisme, metrik, baseline, dan **status bukti** per target, termasuk ko-manfaat yang dinyatakan tetapi tidak diklaim; [§3.6](#36-inklusivitas-sebagai-keputusan-arsitektur-bukan-kata-sifat) — inklusivitas sebagai delapan keputusan arsitektur (2 akun untuk 47 anggota), bukan kata sifat |
 | **Inovasi & Orisinalitas Ide** | 20% | [§1.2](#12-gap-analysis) — pemetaan terhadap enam solusi yang sudah ada; [§1.8.3](#183-empat-pembeda-yang-tidak-dimiliki-solusi-sekelasnya) — empat pembeda; [§1.8.5](#185-peta-persepsi-perceptual-map) — peta persepsi dengan kuadran kosong; [§2.3 F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama) dan [efek pengungkitnya](#efek-pengungkit) |
-| **Fungsionalitas Website** | 20% | [§1.5.5](#155-matriks-keselarasan--masalah--solusi--fitur--bukti) — matriks keselarasan; [§2.3](#23-fitur-utama) — tujuh fitur utama, masing-masing ditutup **mekanisme pembukti** yang benar-benar menolak; [§3.8](#38-ringkasan-dampak--sdg--gap--fitur--metrik--status) — metrik dampak yang benar-benar dihitung produk |
+| **Fungsionalitas Website** | 20% | [§1.5.5](#155-matriks-keselarasan--masalah--solusi--fitur--bukti) — matriks keselarasan; [§2.3](#23-fitur-utama) — tujuh fitur utama, masing-masing ditutup **mekanisme pembukti** yang benar-benar menolak; [§3.8](#38-ringkasan-dampak--sdg--gap--fitur--metrik--status) — metrik dampak yang benar-benar dihitung produk; [**§10.6**](#106-uji-yang-mengunci-invarian) — setiap invarian yang diklaim punya uji yang benar-benar gagal bila dilanggar |
 | **UI/UX & Responsivitas** | 15% | [§1.7.2](#172-profil-unit-target-koperasi-bukan-petani) — lebar 360 px sebagai target utama; [§2.4 T5](#t5--aksesibilitas--responsivitas) dan [T7](#t7--navigasi--percepatan-kerja) |
 | **Implementasi Teknologi** | 15% | [§1.5.6](#156-kenapa-solusinya-berbentuk-begini--lima-keputusan-yang-menentukan) — lima keputusan rancangan; [§2.3 F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) dan [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama); [§2.4 T4](#t4--keamanan--isolasi-data) dan [T6](#t6--ketahanan-sistem); [**§5.2**](#52-alasan-pemilihan-teknologi) — alasan tiap teknologi beserta **alternatif yang ditolak**, [sepuluh ADR](#524-sepuluh-adr--keputusan-arsitektur-yang-tertulis), [analisis radius ledakan](#523-kenapa-tiga-layanan-bukan-satu--dan-di-mana-garis-potongnya), dan [§5.2.6](#526-teknologi-yang-sengaja-tidak-dipakai) teknologi yang sengaja tidak dipakai |
 | **Dokumentasi & Repositori** | 10% | [Catatan Metodologi Angka](#-catatan-metodologi-angka) + label provenans pada setiap angka + [daftar referensi bersumber](#-referensi) + keterlacakan fitur → masalah → invarian di [§2.5](#25-ringkasan-keterlacakan-fitur) + [§3.7](#37-batas-klaim-dampak--apa-yang-belum-bisa-dikatakan) batas klaim yang dinyatakan terbuka + [**§9**](#-9-api-documentation) dokumentasi 41 endpoint beserta [katalog kode kesalahan](#99-katalog-kode-kesalahan) dan [§9.11](#911-cors-dan-batasan) batasan API yang dinyatakan |
