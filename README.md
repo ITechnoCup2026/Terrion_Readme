@@ -1,5 +1,9 @@
 <div align="center">
 
+<img src="./assets/hero-banner.png" alt="Terrion — Sistem Pencatatan & Perencanaan Produksi Koperasi Tani" width="100%" />
+
+<br/>
+
 # 🌾 TERRION
 
 ### Satu catatan tanam, empat keluaran. Satu rencana tanam, satu musim yang tidak menabrak dirinya sendiri.
