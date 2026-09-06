@@ -90,6 +90,19 @@
   - [7.5 Verifikasi Instalasi](#75-verifikasi-instalasi)
   - [7.6 Pemecahan Masalah](#76-pemecahan-masalah)
 - [🚀 8. Penggunaan](#-8-penggunaan)
+  - [8.1 Cara Menjalankan Aplikasi](#81-cara-menjalankan-aplikasi)
+    - [8.1.1 Mode Pengembangan (Development)](#811-mode-pengembangan-development)
+    - [8.1.2 Mode Produksi (Production Build & Run)](#812-mode-produksi-production-build--run)
+    - [8.1.3 Orkestrasi Otomasi Sistem & Sinkronisasi Cuaca](#813-orkestrasi-otomasi-sistem--sinkronisasi-cuaca)
+  - [8.2 Panduan & Alur Pengguna Berdasarkan Peran (User Guide & User Flow)](#82-panduan--alur-pengguna-berdasarkan-peran-user-guide--user-flow)
+    - [8.2.1 Alur Pengurus Koperasi — Perencanaan Hulu & Mitigasi Risiko](#821-alur-pengurus-koperasi--perencanaan-hulu--mitigasi-risiko)
+    - [8.2.2 Alur Kader Lapangan — Pencatatan Cepat & Kalibrasi Panen](#822-alur-kader-lapangan--pencatatan-cepat--kalibrasi-panen)
+    - [8.2.3 Alur Pembeli / Offtaker B2B — Kontrak Pasokan Berjangka](#823-alur-pembeli--offtaker-b2b--kontrak-pasokan-berjangka)
+    - [8.2.4 Alur Petani Anggota — Inklusivitas Ekstrem Tanpa Beban Akun](#824-alur-petani-anggota--inklusivitas-ekstrem-tanpa-beban-akun)
+    - [8.2.5 Alur Pengunjung Publik & Pemangku Kebijakan](#825-alur-pengunjung-publik--pemangku-kebijakan)
+    - [8.2.6 Alur Operator Sistem — Penyediaan Wilayah & Koperasi](#826-alur-operator-sistem--penyediaan-wilayah--koperasi)
+  - [8.3 Matriks Hak Akses, Pengalihan Rute, & Dinding Pengaman](#83-matriks-hak-akses-pengalihan-rute--dinding-pengaman)
+  - [8.4 Skenario Operasional Nyata: Siklus Satu Musim Tanam Penuh](#84-skenario-operasional-nyata-siklus-satu-musim-tanam-penuh)
 - [📚 9. API Documentation](#-9-api-documentation)
   - [9.1 Aturan Umum](#91-aturan-umum)
   - [9.2 Ringkasan Seluruh Endpoint](#92-ringkasan-seluruh-endpoint)
@@ -4017,7 +4030,533 @@ cd ../Terrion_AI    && pytest -q         # 84 uji
 
 ## 🚀 8. Penggunaan
 
-> 🚧 **Belum diisi.** Akan memuat cara menjalankan aplikasi dan **User Guide & Flow** per peran (Kader · Pengurus · Pembeli · Petani anggota) — mengikuti [peta layar §2.2](#22-peta-layar).
+Bab ini menyajikan panduan operasional lengkap sistem Terrion, mencakup tata cara eksekusi teknis perangkat lunak (*execution guide*) hingga alur kerja terperinci per peran pengguna (*user guide & user flow*). Alur yang didokumentasikan di bawah ini diturunkan secara langsung dari verifikasi kode produksi pada ketiga repositori (`Terrion_Backend`, `Terrion_Frontend`, dan `Terrion_AI`), mencerminkan batasan bisnis, invarian integritas, mesin status (*state machine*), dan mitigasi kegagalan sistem secara presisi tanpa asumsi.
+
+---
+
+### 8.1 Cara Menjalankan Aplikasi
+
+Terrion dirancang modular dengan pemisahan tegas antara antarmuka web (`Terrion_Frontend`), gerbang API bisnis (`Terrion_Backend`), dan komputasi sains data (`Terrion_AI`). Seluruh perintah di bawah ini dapat dijalankan pada lingkungan lokal maupun peladen *staging*.
+
+#### 8.1.1 Mode Pengembangan (Development)
+
+Untuk kebutuhan pengembangan harian, jalankan masing-masing subsistem pada terminal terpisah setelah menyelesaikan konfigurasi variabel lingkungan di [§7.3](#73-jalur-a--instalasi-tanpa-docker):
+
+##### 1. Menjalankan Backend (Go / Fiber)
+```bash
+cd Terrion_Backend
+
+# 1. Jalankan migrasi basis data (16 pasang migrasi SQL)
+go run ./cmd/migrate up
+
+# 2. Isi data benih (komoditas, varietas, grid cuaca, dan akun demo)
+go run ./cmd/seed -accounts -weather
+
+# 3. Jalankan server API backend (aktif di http://localhost:8000)
+go run ./cmd/server
+```
+
+##### 2. Menjalankan AI Service (Python / FastAPI)
+```bash
+cd Terrion_AI
+
+# 1. Aktifkan virtual environment
+source .venv/bin/activate  # Linux/macOS
+# atau: .venv\Scripts\activate  # Windows PowerShell
+
+# 2. Jalankan server AI solver (aktif di http://localhost:8081)
+uvicorn main:app --host 0.0.0.0 --port 8081 --reload
+```
+> [!NOTE]
+> Menjalankan `Terrion_AI` bersifat opsional saat pengembangan fitur frontend dasar. Jika layanan Python dimatikan, `Terrion_Backend` secara otomatis mengaktifkan *fallback greedy solver* bawaan Go tanpa menggagalkan proses perencanaan tanam.
+
+##### 3. Menjalankan Frontend (Next.js 15 App Router)
+```bash
+cd Terrion_Frontend
+
+# 1. Instalasi dependensi via pnpm
+pnpm install
+
+# 2. Jalankan server pengembang Next.js (aktif di http://localhost:3000)
+pnpm dev
+```
+
+##### 4. Perintah Verifikasi, Linting, & Pengujian Cepat
+| Subsistem | Perintah Pengujian | Linting & Pengecekan Tipe |
+|---|---|---|
+| **Terrion_Backend** | `go test -v ./...` | `golangci-lint run` |
+| **Terrion_Frontend** | `pnpm test` | `pnpm lint && pnpm type-check` |
+| **Terrion_AI** | `pytest -v` | `ruff check . && mypy .` |
+
+---
+
+#### 8.1.2 Mode Produksi (Production Build & Run)
+
+Dalam lingkungan produksi, sistem dikompilasi menjadi artefak biner murni dan bundel JavaScript teroptimasi tinggi:
+
+##### Jalur Kompilasi Biner & Bundel Standalone:
+```bash
+# 1. Kompilasi Backend Go (Statically Linked Binary)
+cd Terrion_Backend
+CGO_ENABLED=0 GOOS=linux go build -tags netgo -ldflags="-s -w" -o bin/server ./cmd/server
+./bin/server
+
+# 2. Bundel Frontend Next.js Standalone
+cd ../Terrion_Frontend
+pnpm build
+node .next/standalone/server.js
+
+# 3. Eksekusi Produksi AI Service via Gunicorn / Uvicorn Workers
+cd ../Terrion_AI
+gunicorn main:app -w 2 -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8081 --timeout 120
+```
+
+##### Jalur Orkestrasi Kontainer (Docker Compose):
+Jalankan seluruh ekosistem Terrion secara terpadu menggunakan konfigurasi terorkestrasi:
+```bash
+# Membangun citra dan menyalakan kontainer di latar belakang
+docker compose up -d --build
+
+# Memeriksa status kesehatan kontainer
+docker compose ps
+
+# Memantau log gabungan secara real-time
+docker compose logs -f
+```
+
+---
+
+#### 8.1.3 Orkestrasi Otomasi Sistem & Sinkronisasi Cuaca
+
+Terrion mengandalkan data meteorologi harian (suhu minimum, rata-rata, maksimum, dan akumulasi GDD) untuk memperbarui estimasi jendela panen secara dinamis. Pemicuan sinkronisasi dilakukan via *scheduled cron job* (misal: Railway Cron atau Linux `crontab`) yang memanggil endpoint terproteksi:
+
+```bash
+# Pemicuan sinkronisasi cuaca harian seluruh grid sel Indonesia (0.25° grid)
+curl -X POST http://localhost:8000/api/cron/weather \
+  -H "Authorization: Bearer ${CRON_SECRET}" \
+  -H "Content-Type: application/json"
+```
+
+| Kode Respons | Makna Sistem | Tindakan Penanganan |
+|---|---|---|
+| `200 OK` | Seluruh grid sel berhasil diperbarui dengan data Open-Meteo terbaru | Rutinitas harian sukses; model GDD terkalibrasi ke cuaca observasi (`observed`) |
+| `401 Unauthorized` | Header Authorization hilang atau nilai `CRON_SECRET` salah | Periksa konsistensi variabel lingkungan peladen |
+| `503 Service Unavailable` | `CRON_SECRET` belum dikonfigurasi di peladen backend | Konfigurasikan secret key pada file `.env` produksi |
+
+---
+
+### 8.2 Panduan & Alur Pengguna Berdasarkan Peran (User Guide & User Flow)
+
+Arsitektur interaksi Terrion dibangun di atas **tujuh profil pengguna spesifik** (A1–A7). Setiap peran memiliki wewenang, batasan keamanan, serta antarmuka khusus yang dirancang untuk menghilangkan redundansi data di lapangan.
+
+```mermaid
+flowchart TD
+    subgraph A3["PENGURUS KOPERASI (A3)"]
+        A3_1["1. Setup Kapasitas Pasca-Panen<br/>(/kapasitas)"]
+        A3_2["2. Susun & Terapkan Rencana Tanam<br/>(/rencana/susun)"]
+        A3_3["3. Mitigasi Tabrakan via Staggering<br/>(/dashboard)"]
+        A3_4["4. Agregasi RDKK & Pembelian Pupuk<br/>(/purchases)"]
+        A3_5["5. Eksekusi Kontrak Pasokan Offtaker<br/>(/requests)"]
+    end
+
+    subgraph A2["KADER LAPANGAN / PPL (A2)"]
+        A2_1["1. Pendaftaran Lahan & Blok Cepat<br/>(/plots?new=1 — 40 detik)"]
+        A2_2["2. Kanvas Lahan Visual & Pecah Blok<br/>(/plots/[id])"]
+        A2_3["3. Pencatatan Panen Riil Timbangan<br/>(/panen & /plots/[id])"]
+    end
+
+    subgraph A4["PEMBELI / OFFTAKER B2B (A4)"]
+        A4_1["1. Eksplorasi Katalog Pasokan 12 Minggu<br/>(/catalog)"]
+        A4_2["2. Registrasi Mandiri Khusus Pembeli<br/>(/signup)"]
+        A4_3["3. Pengajuan Kontrak Pasok Pra-Panen<br/>(/catalog/[id])"]
+        A4_4["4. Pelacakan Permintaan Real-Time<br/>(/my-requests)"]
+    end
+
+    subgraph A6["PETANI ANGGOTA (A6)"]
+        A6_1["Buka Tautan Personal WhatsApp<br/>(/rencana-saya/:token & /garden/:kode)"]
+        A6_2["Verifikasi Mandiri Jadwal & Hamparan<br/>(100% Tanpa Akun & Password)"]
+    end
+
+    A3_2 ==>|"Melahirkan Blok Rencana Masa Depan"| A2_1
+    A2_1 -->|"Satu Catatan Tanam"| A3_3
+    A2_1 -->|"Satu Catatan Tanam"| A3_4
+    A2_1 -->|"Menerbitkan Listing Pasokan"| A4_1
+    A2_1 -->|"Membagikan Tautan Lahan"| A6_1
+    A4_3 -->|"Permintaan Pasokan Masuk"| A3_5
+    A2_3 -->|"Kalibrasi Empiris Mandiri (Refit)"| A3_3
+```
+
+---
+
+#### 8.2.1 Alur Pengurus Koperasi — Perencanaan Hulu & Mitigasi Risiko
+
+Pengurus koperasi adalah penanggung jawab strategis dan ekonomi organisasi. Pengurus menggunakan Terrion untuk menyusun rencana tanam sebelum musim dimulai, mengendalikan arus panen agar tidak melampaui fasilitas pengeringan/gudang, memvalidasi pesanan pupuk bersubsidi, serta mengikat kontrak pembelian dengan offtaker berbadan hukum.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Pengurus Koperasi
+    participant FE as Terrion Frontend (/rencana)
+    participant BE as Terrion Backend
+    participant AI as Terrion AI (FastAPI / CP-SAT)
+    participant DB as PostgreSQL
+
+    P->>FE: Buka /rencana/susun, pilih Musim (MT I) & Tujuan (Aman / Pendapatan / Pasar)
+    FE->>BE: GET /api/plans/propose?season_code=2026-mt1&goal=aman
+    BE->>AI: POST /v1.0/plan/propose (Kandidat Lahan x Varietas x Suhu Normal)
+    AI-->>BE: 3 Rencana Preskriptif + Simulasi Monte Carlo 2.000 Iterasi
+    BE-->>FE: Payload 3 Skenario + Proyeksi Kurva Panen Mingguan
+    P->>FE: Analisis perbandingan puncak panen & tekan [Terapkan Rencana]
+    FE->>BE: POST /api/plans (objective, items)
+    BE->>DB: Transaksi Atomik: Simpan season_plan & materialisasi blok masa depan
+    DB-->>BE: Commit OK
+    BE-->>FE: 201 Created (Token Berbagi Petani Terbit)
+    FE-->>P: Tampilkan halaman detail rencana (/rencana/[id])
+```
+
+##### Langkah-Langkah Operasional Pengurus:
+
+##### 1. Konfigurasi Kapasitas Pasca-Panen Koperasi (`/kapasitas`)
+* **Tujuan**: Menentukan batas maksimal tonase panen per minggu yang sanggup diserap fasilitas lantai jemur, mesin pengering (*bed dryer*), dan gudang penyimpanan koperasi.
+* **Tindakan**: Pengurus membuka `/kapasitas`, memasukkan angka kapasitas per komoditas (contoh: Padi 50 ton/minggu, Cabai 10 ton/minggu), lalu menekan **Simpan Kapasitas**.
+* **Dampak Sistem**: Mengubah acuan ambang batas deteksi tabrakan di dasbor dari batas cadangan (*2,5 × median mingguan*) menjadi kapasitas riil pabrik/gudang.
+
+##### 2. Penyusunan Rencana Tanam Musim Depan (`/rencana/susun`)
+* **Tujuan**: Menjawab tantangan klasik pertanian di mana petani menanam serentak tanpa koordinasi, menyebabkan kejatuhan harga saat panen raya.
+* **Tindakan**:
+  1. Akses menu **Rencana Tanam** $ightarrow$ klik tombol **Susun Rencana**.
+  2. Pilih musim target: **MT I (Oktober – Maret)** atau **MT II (April – September)**.
+  3. Masukkan preferensi tujuan operasional koperasi melalui kalimat bebas atau memilih salah satu dari **3 Skenario Preskriptif**:
+     * **Skenario Aman (Anti-Tabrakan)**: Meminimalkan puncak panen mingguan agar kurva distribusi panen tetap berada di bawah ambang kapasitas pasca-panen.
+     * **Skenario Pendapatan (Revenue-Maximizing)**: Memaksimalkan taksiran pendapatan kotor musiman dengan mengarahkan panen ke minggu-minggu berpola harga historis tertinggi.
+     * **Skenario Terikat Pasar (Contract-First)**: Memprioritaskan pemenuhan komitmen kontrak offtaker yang telah disepakati terlebih dahulu, baru kemudian mengoptimalkan sisa lahan anggota.
+  4. Sistem memproses kombinatorial optimasi (8 detik anggaran waktu total, 3,5 detik komputasi CP-SAT) dan merender 3 skenario bersisian lengkap dengan kurva panen 12 minggu, puncak terburuk (*worst-case peak*), dan daftar lahan yang tidak dapat ditugaskan (*skipped plots*) beserta alasannya.
+  5. Pengurus meninjau hasil penugasan per anggota, melakukan penyesuaian (*fine-tuning*) jika diperlukan, lalu mengklik tombol **Terapkan Rencana Ini**.
+* **Efek Pengungkit Hulu ke Hilir**:
+  Penerapan rencana mengeksekusi transaksi atomik yang melahirkan blok-blok tanam masa depan (`status = planned`) dengan `season_plan_id`. Tindakan ini secara instan:
+  * Mengaktifkan sistem penggeseran tanam (*staggering*) di `/dashboard` sebelum bibit ditebar.
+  * Menerbitkan draf kebutuhan pupuk RDKK di `/purchases` 3–5 bulan lebih awal (tepat pada siklus pengajuan subsidi pemerintah).
+  * Menampilkan listing panen berjangka di `/catalog` publik untuk mengundang offtaker.
+  * Menerbitkan token tautan personal WhatsApp untuk dibagikan kepada petani anggota.
+
+##### 3. Mitigasi Risiko Tabrakan Panen via Dasbor (`/dashboard`)
+* **Tujuan**: Mencegah penumpukan hasil panen pada minggu yang sama yang dapat mengakibatkan pembusukan komoditas atau anjloknya harga lokal.
+* **Tindakan**:
+  1. Buka dasbor untuk melihat grafik proyeksi panen 12 minggu ke depan dengan visualisasi pita ketidakpastian (*uncertainty band*: `min_tonnes`, `expected_tonnes`, `max_tonnes`).
+  2. Jika volume suatu minggu melampaui kapasitas gudang, dasbor menampilkan kartu merah peringatan tabrakan panen (*pile-up alert*).
+  3. Sistem memilih minggu `lead` (minggu tumpukan terberat yang melibatkan minimal 2 lahan berbeda, sesuai `PileUpMinPlots = 2`) dan menawarkan rekomendasi penggeseran konkret: geser *n* blok sebanyak $\pm 7, \pm 10,$ atau $\pm 14$ hari.
+  4. Pengurus memeriksa dampak simulasi pergeseran, lalu menekan **Terapkan Penggeseran** (`POST /api/stagger`).
+* **Invarian Integritas**:
+  Penggeseran tanam **hanya dapat diterapkan pada blok yang tanggal tanamnya masih di masa depan** (`planting_date > today`). Blok yang sudah tertanam di tanah ditolak secara mutlak oleh backend (`422 stagger_nothing_to_shift`) karena sejarah biologis tidak dapat ditulis ulang.
+
+##### 4. Pengadaan Pupuk Bersama & Ekspor Formulir RDKK (`/purchases` & `/purchases/rdkk`)
+* **Tujuan**: Mengkonsolidasikan pembelian sarana produksi pertanian (saprotan) untuk mendapatkan harga grosir dan mencetak dokumen legal RDKK untuk alokasi pupuk subsidi.
+* **Tindakan**:
+  1. Masuk ke halaman **Pembelian Bersama** (`/purchases`). Sistem menampilkan ringkasan kebutuhan pupuk total (Urea, NPK, Organik) yang dihitung dari dosis agronomi resmi per komoditas dikalikan luas efektif.
+  2. Meninjau daftar anggota yang melebihi batas subsidi pemerintah ($> 2	ext{ ha}$). Sistem mendaftar nama petani dan kelebihan luasnya secara transparan tanpa memotong angka riil secara sepihak.
+  3. Pengurus mengklik **Buat Pesanan Kelompok** (`POST /api/input-orders`) untuk membuat draf pesanan agregat tanpa harga sebagai dasar lelang ke distributor resmi.
+  4. Klik tombol **Ekspor Formulir RDKK** untuk membuka halaman siap cetak (`/purchases/rdkk`). Tampilan memuat tabel matriks anggota $	imes$ kebutuhan pupuk, dasar hukum dosis, serta kolom tanda tangan basah Penyuluh Pertanian Lapangan (PPL) dan Ketua Kelompok Tani. Tombol **Cetak / Simpan PDF** otomatis menyembunyikan bilah navigasi dan header peramban.
+
+##### 5. Pengelolaan Kontrak Pasokan Offtaker (`/requests`)
+* **Tujuan**: Merespons surat penawaran minat beli dari entitas industri/pembeli grosir.
+* **Tindakan**:
+  1. Masuk ke menu **Permintaan Pasokan** (`/requests`). Dasbor KPI menampilkan total permintaan, menunggu persetujuan, diterima, dan ditolak.
+  2. Klik kartu permintaan untuk memeriksa detail profil organisasi offtaker, volume (ton), preferensi logistik (*Antar ke gudang*, *Ambil di koperasi*, atau *Belum ditentukan*), dan jendela panen yang diminta.
+  3. Pengurus mengambil keputusan final dengan menekan **Terima (Accept)** atau **Tolak (Decline)** via `PATCH /api/supply-requests/:id`.
+* **Invarian Penjagaan Alokasi (`checkAllocation`)**:
+  Saat pengurus menekan tombol Terima, backend mengunci data dan melakukan validasi alokasi:
+  $$\sum 	ext{Volume Permintaan Diterima} + 	ext{Permintaan Baru} \le 	ext{Proyeksi Panen Jendela Bersangkutan}$$
+  Jika kuota pasokan tidak mencukupi, sistem menolak eksekusi dengan galat `422 allocation_exceeded`:
+  > *"Menerima permintaan ini akan membuat total tonase yang diterima melebihi proyeksi panen jendela ini. Tolak permintaan ini, atau tunggu proyeksi panen berikutnya."*
+
+---
+
+#### 8.2.2 Alur Kader Lapangan — Pencatatan Cepat & Kalibrasi Panen
+
+Kader Lapangan (atau PPL) adalah pencatat data hamparan di tingkat desa. Antarmuka kader dirancang dengan filosofi beban kognitif minimal: pencatatan lahan baru selesai dalam **$\pm 40$ detik**, tampilan visual interaktif menyerupai tata kelola lahan pertanian, dan pencatatan hasil timbangan panen yang secara otomatis mengkalibrasi kecerdasan sistem.
+
+```mermaid
+stateDiagram-v2
+    [*] --> BukaLahan: Kader masuk /dashboard -> /plots
+    BukaLahan --> FormBaru: Klik Daftarkan Lahan Baru (/plots?new=1)
+    FormBaru --> ValidasiInput: Isi 4 data wajib (Petani, Lahan, Komoditas, Luas)
+    ValidasiInput --> SimpanLahan: Tekan Simpan Lahan (POST /api/plots)
+    SimpanLahan --> KanvasLahan: Masuk /plots/[id] (Visual Pixel Art Lahan)
+    KanvasLahan --> GeserWaktu: Simulasikan Pertumbuhan Tanaman via Time Slider
+    KanvasLahan --> PecahBlok: Petak ditanami bertahap -> Pecah Blok (POST /api/blocks/:id/split)
+    KanvasLahan --> CatatPanen: Tanaman matang -> Klik Catat Panen
+    CatatPanen --> ValidasiPanen: Masukkan Tgl Panen & Hasil Riil (PATCH /api/blocks/:id/harvest)
+    ValidasiPanen --> KalibrasiModel: Simpan Panen OK -> Trigger RefitCalibration Asinkron
+    KalibrasiModel --> KanvasLahan: Blok Tertutup & Tanda Terima Bias Suhu Muncul
+```
+
+##### Langkah-Langkah Operasional Kader:
+
+##### 1. Pendaftaran Lahan Persil Baru (`/plots?new=1`)
+* **Tujuan**: Mendokumentasikan petak sawah dan jadwal tanam petani anggota secara cepat langsung di pematang sawah.
+* **Formulir 4 Isian Utama**:
+  1. **Nama Petani**: Nama anggota kelompok tani (minimal 2 karakter, pencarian prediktif anggota terdaftar).
+  2. **Nama Lahan**: Penamaan lokal petak fisik (contoh: *Sawah Blok Cigadung Lor*).
+  3. **Komoditas & Varietas**: Memilih komoditas utama dari daftar prioritas pangan. Dropdown varietas nonaktif hingga komoditas dipilih; mengubah komoditas otomatis membersihkan pilihan varietas sebelumnya.
+  4. **Tanggal Tanam**: Dilengkapi tiga tombol pintas 1-klik: **Hari ini**, **MT I (1 Oktober)**, atau **MT II (1 April)**.
+  5. **Luas Tanam (ha)**: Angka desimal hektar ($> 0$). Total luas lahan dikunci sama dengan total luas blok tanam untuk mencegah perbedaan angka agraria.
+  6. *Koordinat Geospatial*: Terisi otomatis dari koordinat kantor koperasi (kader tidak dituntut menghafal angka lintang/bujur GPS di lapangan).
+* **Fitur Akselerasi Input Lapangan**:
+  * **Tambah Komoditas (Polikultur)**: Membagi otomatis luas lahan yang telah diketik menjadi beberapa blok tanam tanpa harus menghitung ulang desimal manual.
+  * **Salin dari Lahan Sebelumnya**: Menyalin konfigurasi komoditas, varietas, dan tanggal tanam dari lahan terakhir yang baru disimpan. Memangkas waktu pencatatan hamparan seragam menjadi belasan detik per petak.
+
+##### 2. Interaksi Kanvas Lahan Visual & Pemecahan Blok (`/plots/[id]`)
+* **Tampilan Permainan Lahan (Farm Canvas)**: Lahan divisualisasikan dalam bentuk ubin *pixel art* berpagar. Luas petak tanah dan tanaman mencerminkan skala proporsional riil (1 ubin $pprox$ fraksi hektar tetap).
+* **Penggeser Waktu (Interactive Time Slider)**: Kader dapat menggeser linimasa hari untuk melihat visualisasi fase vegetatif hingga pematangan bulir. Seluruh kalkulasi akumulasi suhu (GDD) dieksekusi di peramban klien tanpa melakukan *fetch request* ke peladen.
+* **Operasi Pemecahan Blok (Split Block)**:
+  * Jika suatu blok seluas 1,0 ha ternyata disisipi tanaman sekunder seluas 0,3 ha, kader mengklik blok tersebut $ightarrow$ pilih **Pecah Blok**.
+  * Panel memvalidasi batas maksimum luas pecahan secara instan di peramban.
+  * Menekan kirim memicu `POST /api/blocks/:id/split`. Blok baru terbit dengan huruf urut berikutnya tanpa mengubah total luas fisik lahan.
+
+##### 3. Pencatatan Hasil Panen Aktual & Kalibrasi Model Mandiri
+* **Tujuan**: Menutup siklus tanam satu blok dan memperbarui kecerdasan akurasi prediksi masa depan.
+* **Tindakan**:
+  1. Klik blok tanaman yang telah selesai dipanen $ightarrow$ klik tombol **Catat Panen**.
+  2. Masukkan **Tanggal Panen Riil** (`YYYY-MM-DD`) dan **Hasil Panen Riil** (satuan kg timbangan).
+  3. Mengisi **Harga per kg** dan **Tanggal Pembayaran** jika transaksi jual beli dengan tengkulak/pembeli telah selesai (opsional: boleh dikosongkan jika uang belum cair agar tidak memaksakan data fiktif).
+  4. Tekan **Simpan Panen** (`PATCH /api/blocks/:id/harvest`).
+* **Aturan Penolakan Input Panen (5 Invarian Bisnis)**:
+  | Skenario Galat | Kode Kesalahan | Pesan Validasi UI |
+  |---|---|---|
+  | Blok tidak ditemukan / beda koperasi | `harvest_block_already_gone` | *"Blok ini sudah tidak ada, atau bukan milik koperasi Anda."* |
+  | Panen sudah pernah diinput | `harvest_already_recorded` | *"Panen blok ini sudah dicatat sebelumnya."* |
+  | Tanggal panen mendahului tanam | `harvest_before_planting` | *"Tanggal panen tidak boleh sebelum tanggal tanam."* |
+  | Tanggal panen belum terjadi | `harvest_in_future` | *"Tanggal panen belum terjadi. Catat setelah panen selesai."* |
+  | Tanggal pelunasan sebelum panen | `harvest_payment_before_crop` | *"Tanggal pembayaran tidak boleh sebelum tanggal panen."* |
+* **Mekanisme Kalibrasi Asinkron & Shrinkage**:
+  Peladen melakukan *commit* data panen ke tabel `block` terlebih dahulu. Setelah transaksi database selesai, sistem menjalankan fungsi `RefitCalibration(cooperative_id, variety_id)` di latar belakang. Respons API mengembalikan tanda terima kalibrasi berisi `offset_days` (deviasi murni) dan `applied_offset_days` (deviasi terbobot setelah rumus penyusutan Bayesian diterapkan). Prediksi panen blok sejenis berikutnya di koperasi tersebut menjadi lebih akurat.
+
+---
+
+#### 8.2.3 Alur Pembeli / Offtaker B2B — Kontrak Pasokan Berjangka
+
+Pembeli adalah entitas hilir (industri makanan dan minuman, jaringan pasar modern, pedagang grosir) yang membutuhkan kepastian ketersediaan pasokan pangan berkualitas dengan kuantitas terjamin.
+
+```mermaid
+flowchart LR
+    A["Eksplorasi Katalog Publik<br/>(/catalog)"] --> B["Buka Detail Pasokan<br/>(/catalog/[id])"]
+    B --> C{Punya Akun<br/>Pembeli?}
+    C -- Belum --> D["Daftar Akun Instan<br/>(/signup — Khusus Buyer)"]
+    C -- Sudah --> E["Masuk Akun<br/>(/login)"]
+    D --> E
+    E --> F["Isi Formulir Permintaan Kontrak<br/>(Tonase, Opsi Kirim, Catatan)"]
+    F --> G["Konfirmasi Pernyataan Hukum<br/>(Sistem Terrion Saksi Netral)"]
+    G --> H["Kirim Permintaan Pasokan<br/>(POST /api/supply-requests)"]
+    H --> I["Pantau Status Permintaan<br/>(/my-requests)"]
+    I --> J{Respon Pengurus}
+    J -- Diterima --> K["Status: accepted<br/>(Perikatan Terbentuk)"]
+    J -- Ditolak --> L["Status: declined<br/>(Kapasitas Habis)"]
+```
+
+##### Langkah-Langkah Operasional Pembeli:
+
+##### 1. Penelusuran Katalog Pasokan Berjangka (`/catalog`)
+* Tanpa memerlukan akun, pembeli dapat menyaring komoditas berdasarkan kata kunci varietas, provinsi, kabupaten, dan rentang jendela panen (4 minggu atau 8 minggu ke depan).
+* Membuka panel lipat **Supply Ruler 12 Minggu** untuk melihat distribusi volume agregat ketersediaan pasokan lintas koperasi.
+* Setiap kartu pasokan mencantumkan identitas koperasi, komoditas, varietas unggul, estimasi tonase, dan tanggal rentang panen yang diperkirakan oleh model agrometeorologi.
+
+##### 2. Registrasi Mandiri Akun Pembeli (`/signup`)
+* Pembeli mendaftar secara mandiri tanpa memerlukan verifikasi manual pengurus koperasi.
+* **Isian Pendaftaran**: Nama Lengkap, Nama Entitas/Organisasi Bisnis, Alamat Email Resmi, dan Kata Sandi.
+* **Keamanan Peran Ketat**: Formulir ini tidak menyediakan *dropdown* pilihan peran atau koperasi. Sistem secara sepihak mematok peran akun sebagai `buyer` dengan nilai `cooperative_id = NULL`. Mencegah segala upaya eskalasi privilese ke dalam data internal koperasi tani.
+
+##### 3. Pengajuan Kontrak Minat Pasok (`/catalog/[id]`)
+* Pembeli memilih salah satu listing pasokan, lalu mengklik tombol **Ajukan Kontrak Pasokan**.
+* **Isian Formulir**:
+  * **Volume Kebutuhan (ton)**: Angka riil tonase yang ingin diserap.
+  * **Preferensi Pengiriman**: Tepat 3 opsi kanonik: *Antar ke gudang pembeli*, *Ambil sendiri di koperasi*, atau *Belum ditentukan*.
+  * **Catatan Tambahan**: Ketentuan spesifikasi mutu atau kemasan khusus.
+* *Deteksi Volume Berlebih*: Jika volume yang dimasukkan melebihi taksiran sisa panen pada listing, peringatan kuning muncul otomatis secara dinamis tanpa memblokir pengiriman formulir (memberikan ruang fleksibilitas negosiasi bisnis bagi koperasi).
+* *Pencegahan Pengajuan Ganda*: Jika pembeli telah memiliki permohonan berstatus `pending` atau `accepted` pada listing yang sama, tombol formulir digantikan oleh kartu status peringatan yang mengarahkan pembeli ke dasbor pantau permohonannya.
+
+##### 4. Pelacakan Permintaan Pembeli (`/my-requests`)
+* Halaman ini menampilkan tabel seluruh permohonan yang diajukan oleh pembeli bersangkutan, diurutkan dari yang paling mutakhir.
+* Indikator status permohonan diperbarui secara *real-time*:
+  * `pending` (Kuning): Menunggu telaah pengurus koperasi.
+  * `accepted` (Hijau): Disetujui oleh koperasi; kuota pasokan terkunci.
+  * `declined` (Abu-abu): Ditolak oleh koperasi karena keterbatasan kapasitas atau kendala logistik.
+* *Klausul Hukum Digital*: Pada bagian bawah daftar permohonan dicantumkan penegasan hukum:
+  > *"Terrion adalah penyedia infrastruktur perangkat lunak pencatatan data panen, bukan pihak pembeli/penjual dalam kontrak fisik, dan tidak bertindak sebagai penjamin serah-terima barang atau perantara escrow."*
+
+---
+
+#### 8.2.4 Alur Petani Anggota — Inklusivitas Ekstrem Tanpa Beban Akun
+
+Petani anggota adalah pemilik lahan garapan. Sebagian besar petani di pedesaan Indonesia menghadapi kendala literasi digital, keterbatasan kapasitas memori ponsel pintar, atau keengganan mengingat kata sandi aplikasi baru. Terrion menerapkan prinsip **desain inklusif ekstrem**: petani tidak diwajibkan mendaftar akun, tidak memerlukan kata sandi, dan dapat mengakses seluruh informasi penting miliknya melalui tautan peramban biasa.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor P as Pengurus / Kader
+    participant WA as Saluran WhatsApp Petani
+    actor PT as Petani Anggota (A6)
+    participant FE as Halaman Publik (/rencana-saya/:token & /garden/:kode)
+
+    P->>WA: Bagikan tautan personal jadwal tanam (/rencana-saya/:token)
+    PT->>FE: Buka tautan di peramban ponsel (0 Detik, Tanpa Login/Sandi)
+    FE-->>PT: Render Jadwal Tanam: Tanggal tebar benih, dosis pupuk, rentang panen
+    Note over PT,FE: Privasi Terjaga: Koordinat GPS presisi & harga acuan disembunyikan
+    PT->>WA: Bagikan Kartu Panen Digital ke Poktan / Keluarga
+```
+
+##### Pengalaman Pengguna Petani Anggota:
+
+##### 1. Penerimaan Jadwal Tanam Pra-Musim Personal (`/rencana-saya/:token`)
+* Setelah pengurus menerapkan rencana tanam musiman di tingkat koperasi, sistem menghasilkan tautan token acak berkeamanan tinggi yang dikirimkan pengurus/kader ke nomor WhatsApp masing-masing petani.
+* Saat tautan dibuka, halaman menyajikan informasi spesifik untuk petani tersebut:
+  * Ringkasan petak sawah miliknya yang dijadwalkan tanam pada musim berjalan.
+  * Tanggal rekomendasi penyebaran benih dan varietas padi/jagung/cabai yang ditugaskan.
+  * Alokasi takaran pupuk berimbang (Urea, NPK) dalam satuan karung 50 kg agar petani siap modal.
+  * Perkiraan rentang minggu panen dalam format probabilitas ramah awam.
+* *Penanda Perubahan Rencana*: Jika pengurus membatalkan atau merevisi rencana tanam musiman, halaman otomatis menampilkan spanduk informasi bahwa rencana telah diperbarui oleh koperasi sehingga petani tidak memegang jadwal usang.
+
+##### 2. Halaman Verifikasi Lahan Terbuka (`/garden/<kode>`)
+* Petani dapat memeriksa hamparan sawahnya yang tercatat di sistem melalui kode publik unik (contoh: `/garden/SUBANG-PL-042`).
+* Petani dapat memverifikasi kesesuaian data yang diinput kader (luas petak, jenis varietas, umur tanaman). Jika terdapat kekeliruan pencatatan, petani dapat langsung mengomunikasikannya kepada kader desa.
+* **Perlindungan Privasi Agraria**: Halaman publik secara ketat **tidak pernah menampilkan koordinat geografis lintang/bujur** guna melindungi petani dari ancaman sengketa tanah, serta **tidak menampilkan harga acuan internal** agar tidak dimanfaatkan oleh spekulan pasar lokal.
+* **Fitur Pembuatan Kartu Panen**: Menyediakan tombol satu-klik untuk mengunduh infografis ringkas kartu panen siap bagikan untuk keperluan kelompok tani.
+
+---
+
+#### 8.2.5 Alur Pengunjung Publik & Pemangku Kebijakan
+
+Dirancang untuk masyarakat umum, akademisi, instansi dinas pertanian daerah, dan pemangku kepentingan ketahanan pangan regional guna memantau sebaran sentra produksi pangan secara transparan.
+
+##### 1. Beranda Nasional Terbuka (`/`)
+* Menampilkan visualisasi garis kepulauan Indonesia dengan indikator warna tematik pada provinsi yang memiliki koperasi pertanian aktif.
+* Menampilkan metrik statistik agregat nasional: total luasan lahan tercatat, akumulasi tonase panen terproyeksi, dan indeks diversitas varietas pangan lokal. Seluruh angka bersumber dari data operasional nyata basis data tanpa angka rekayasa pemasaran.
+
+##### 2. Eksplorasi Atlas Pangan Indonesia (`/atlas`)
+* **Pengalaman Navigasi Peta Layar Penuh (Full-Screen Atlas)**:
+  * Menjelajah peta kepulauan Indonesia dengan kontrol interaktif: *scroll* untuk zoom in/out, *drag* untuk menggeser wilayah, dan tombol `Esc` pada papan ketik untuk kembali mundur satu tingkat hirarki wilayah.
+  * Hierarki penelusuran 4 tingkat: **Nasional $ightarrow$ Provinsi $ightarrow$ Kabupaten $ightarrow$ Pin Koperasi**.
+  * Pin koperasi berupa ikon lingkaran emas berukuran 34 px dengan area klik responsif yang nyaman diakses melalui perangkat seluler.
+  * Mengklik pin koperasi membuka panel samping interaktif yang menampilkan profil kelembagaan koperasi, daftar hamparan lahan terdaftar, dan komoditas unggulan yang dibudidayakan.
+
+---
+
+#### 8.2.6 Alur Operator Sistem — Penyediaan Wilayah & Koperasi
+
+Operator sistem adalah administrator teknis tingkat platform yang bertugas mengelola siklus hidup kelembagaan dan memastikan integritas multi-tenant.
+
+```mermaid
+flowchart TD
+    O1["1. Verifikasi Legalitas Koperasi Luring<br/>(Badan Hukum AHU Kemenkumham & Nomor Induk Koperasi)"] --> O2["2. Eksekusi Migrasi Struktur Basis Data<br/>(go run ./cmd/migrate up)"]
+    O2 --> O3["3. Pendaftaran Entitas Koperasi & Akun Pengurus<br/>(go run ./cmd/register -coop ... -role pengurus)"]
+    O3 --> O4["4. Pembuatan Kredensial Akun Kader Lapangan<br/>(go run ./cmd/register -coop-id ... -role kader)"]
+    O4 --> O5["5. Serah Terima Kredensial Resmi ke Pengurus Koperasi"]
+```
+
+* **Pencegahan Pendaftaran Fiktif**: Terrion sengaja tidak menyediakan formulir registrasi koperasi mandiri di web. Pendaftaran koperasi wajib melalui prosedur verifikasi dokumen legalitas fisik oleh operator guna menjamin bahwa entitas yang menerbitkan data pasokan pangan adalah badan hukum koperasi produsen yang sah.
+* **CLI Registrasi Akun Admin (`cmd/register`)**: Operator mendaftarkan koperasi dan akun pimpinan pengurus pertama kali melalui utilitas baris perintah aman:
+  ```bash
+  go run ./cmd/register \
+    -coop "Koperasi Produsen Subang Mandiri" \
+    -regency "Subang" \
+    -prov "Jawa Barat" \
+    -lat -6.5595 -lng 107.7702 \
+    -email "ketua@subangmandiri.coop" \
+    -role pengurus
+  ```
+
+---
+
+### 8.3 Matriks Hak Akses, Pengalihan Rute, & Dinding Pengaman
+
+Keamanan sistem Terrion tidak mengandalkan penyembunyian tombol di antarmuka (*security by obscurity*), melainkan ditegakkan melalui tiga lapisan isolasi (*three-tier defence*):
+
+1. **Lapisan Peramban (Next.js Server Components & Route Guards)**: Memeriksa keberadaan cookie sesi `terrion_session` dan mencocokkan peran akun sebelum merender halaman.
+2. **Lapisan Gerbang API (Fiber Middleware `RequireRole`)**: Memvalidasi identitas sesi di Redis dan memverifikasi klaim peran (`pengurus`, `kader`, `buyer`) sebelum permintaan diteruskan ke controller.
+3. **Lapisan Domain & Basis Data (Usecase Tenant Lock & PostgreSQL RLS)**: Memastikan setiap klausa kueri SQL menyertakan filter `cooperative_id` milik sesi pengguna aktif.
+
+#### Matriks Fungsi vs Peran Pengguna:
+| Kapabilitas Sistem | Publik (A5) | Petani (A6) | Pembeli (A4) | Kader (A2) | Pengurus (A3) | Operator (A1) |
+|---|:--:|:--:|:--:|:--:|:--:|:--:|
+| Akses Beranda, Atlas, & Katalog | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| Akses Halaman Lahan Publik (`/garden`) | ✅ | ✅ | ✅ | ✅ | ✅ | — |
+| Akses Jadwal Tanam Personal via Token | — | ✅ | — | — | — | — |
+| Registrasi Akun Mandiri di Web | — | — | ✅ (`buyer`) | — | — | — |
+| Pengajuan Kontrak Minat Pasok | — | — | ✅ | — | — | — |
+| Pelacakan Status Permintaan Pribadi | — | — | ✅ | — | — | — |
+| Pendaftaran Lahan & Blok Tanam | — | — | — | ✅ | ✅ | — |
+| Pemecahan Blok Tanam (*Split Block*) | — | — | — | ✅ | ✅ | — |
+| Pencatatan Realisasi Panen Timbangan | — | — | — | ✅ | ✅ | — |
+| Penyusunan Rencana Pra-Musim (`/rencana`) | — | — | — | 👁️ (baca) | ✅ (susun & terapkan) | — |
+| Eksekusi Penggeseran Tanam (*Staggering*) | — | — | — | 👁️ (baca) | ✅ (terapkan) | — |
+| Persetujuan Kontrak Offtaker (`/requests`)| — | — | — | — | ✅ (terima/tolak) | — |
+| Konfigurasi Kapasitas Pasca-Panen | — | — | — | 👁️ (baca) | ✅ (ubah) | — |
+| Pembuatan Pesanan Pupuk Agregat | — | — | — | 👁️ (baca) | ✅ (order) | — |
+| Pencetakan Dokumen Fisik RDKK | — | — | — | ✅ | ✅ | — |
+| Provisioning Koperasi & Akun via CLI | — | — | — | — | — | ✅ |
+
+#### Matriks Pengalihan Rute Otomatis (Page Guard Redirect Matrix):
+| Status Sesi Pengguna | Rute yang Dikunjungi | Aksi Pengalihan Otomatis Frontend |
+|---|---|---|
+| Belum Masuk (*Unauthenticated*) | `/dashboard`, `/plots/*`, `/rencana/*`, `/purchases/*`, `/requests` | Dialihkan ke `/login` |
+| Akun Pembeli (`buyer`) | `/dashboard`, `/plots`, `/rencana`, `/purchases` | Dialihkan ke `/catalog` |
+| Akun Pembeli (`buyer`) | `/requests` | Ditolak penjaga hak akses $ightarrow$ dialihkan ke `/catalog` |
+| Akun Kader (`kader`) | `/requests` (menu khusus pengurus) | Dialihkan ke `/dashboard` |
+| Akun Kader / Pengurus | `/catalog`, `/catalog/[id]` | Dialihkan ke `/dashboard` (fokus pada operasi internal) |
+| Akun Kader / Pengurus | `/my-requests` (pelacakan pembeli) | Dialihkan ke `/requests` |
+| Peladen Backend Tidak Aktif | Rute internal mana pun di grup `(app)` | Ditampilkan komponen **BackendDownState** (bukan pengalihan salah ke `/login`) |
+
+---
+
+### 8.4 Skenario Operasional Nyata: Siklus Satu Musim Tanam Penuh
+
+Untuk memberikan pemahaman utuh mengenai sinergi antar-peran dan antar-fitur, berikut adalah rekonstruksi kronologis siklus operasional komoditas Padi & Cabai pada **Koperasi Produsen Subang Makmur** sepanjang Musim Tanam I (MT I 2026/2027):
+
+```mermaid
+gantt
+    title Kronologi Siklus Operasional Satu Musim Penuh (MT I 2026/2027)
+    dateFormat  YYYY-MM-DD
+    section Hulu (Pra-Musim)
+    Rencana Tanam di /rencana (Pengurus)    :milestone, m1, 2026-07-01, 0d
+    Penerbitan Draf RDKK di /purchases      :active, 2026-07-02, 14d
+    Listing Pra-Panen Masuk /catalog       :active, 2026-07-02, 60d
+    section Pasar (Pra-Tanam)
+    Offtaker Mengajukan Kontrak Pasok      :crit, 2026-08-10, 10d
+    Pengurus Terima Permintaan di /requests :milestone, m2, 2026-08-20, 0d
+    section Budidaya & Mitigasi
+    Deteksi Tabrakan di /dashboard         :crit, 2026-09-15, 5d
+    Staggering Digeser 10 Hari              :milestone, m3, 2026-09-20, 0d
+    Kader Catat Tanam di /plots (40 Detik) :active, 2026-10-01, 10d
+    Petani Pantau via WhatsApp Tautan       :active, 2026-10-01, 100d
+    section Hilir (Panen)
+    Pencatatan Panen Riil Timbangan        :crit, 2027-01-20, 10d
+    RefitCalibration Perbarui Model Suhu    :milestone, m4, 2027-01-30, 0d
+```
+
+1. **Fase Hulu — T-90 Hari Sebelum Tanam (Juli 2026)**:
+   * Pengurus membuka `/rencana/susun`, menetapkan target musim MT I 2026/2027 dengan tujuan *Aman*. Sistem solver menghasilkan konfigurasi tanam optimal atas 45 hamparan petani terdaftar seluas 32 hektar.
+   * Pengurus mengklik **Terapkan Rencana**. Seluruh jadwal blok masa depan tersimpan atomik.
+   * Pengurus membuka `/purchases/rdkk`, mencetak formulir resmi kebutuhan 18,5 ton pupuk bersubsidi, dan menyerahkannya ke Dinas Pertanian tepat pada jendela evaluasi alokasi pupuk daerah.
+   * Petani anggota menerima notifikasi WhatsApp berisi tautan privat `/rencana-saya/:token` untuk mengetahui rekomendasi jadwal semai benih padi Ciherang masing-masing.
+
+2. **Fase Pasar — T-60 Hari Sebelum Tanam (Agustus 2026)**:
+   * Pabrik pengolahan beras B2B di Jakarta membuka `/catalog`, melihat listing pasokan Padi Ciherang Subang dengan estimasi jendela panen minggu ke-3 Januari 2027 sebesar 65 ton.
+   * Pembeli mendaftar akun di `/signup`, lalu mengajukan kontrak pasokan sebesar 30 ton dengan preferensi *Ambil sendiri di gudang koperasi*.
+   * Pengurus menerima notifikasi di `/requests`, memeriksa kalkulasi alokasi (30 ton $\le$ 65 ton proyeksi), dan menekan tombol **Terima**. Perikatan pasokan pra-panen terbentuk secara resmi.
+
+3. **Fase Mitigasi Risiko — T-14 Hari Sebelum Tanam (Pertengahan September 2026)**:
+   * Pengurus memantau dasbor `/dashboard`. Grafik mendeteksi potensi tumpukan panen cabai rawit sebesar 16 ton pada minggu ke-51 (melampaui kapasitas gudang penyimpanan dingin koperasi yang berkapasitas 10 ton).
+   * Dasbor menampilkan saran pergeseran jadwal tanam. Pengurus menekan tombol **Terapkan Penggeseran**, memundurkan tanggal tanam 6 blok cabai sebesar +10 hari. Risiko anjloknya harga lokal dan kebusukan komoditas tereliminasi secara preventif.
+
+4. **Fase Budidaya — T-0 Hari (Oktober 2026)**:
+   * Petani mulai menanam di petak sawah. Kader lapangan mendatangi hamparan dan memvalidasi kondisi riil menggunakan formulir pendaftaran `/plots?new=1`.
+   * Berkat fitur *Salin dari Lahan Sebelumnya*, kader mencatat 45 petak sawah hanya dalam waktu kurang dari 35 menit.
+   * Kader membagikan tautan publik `/garden/SUBANG-PL-012` kepada petani untuk verifikasi hamparan tanpa meminta petani membuat akun.
+
+5. **Fase Hilir & Penutupan Gelung — T+110 Hari (Januari 2027)**:
+   * Panen raya padi berlangsung. Gabah ditimbang di lantai jemur koperasi dengan hasil riil 6.850 kg pada blok A1.
+   * Kader membuka `/panen`, memasukkan tanggal panen aktual dan angka timbangan riil 6.850 kg.
+   * Sistem melakukan *commit* data panen dan memicu `RefitCalibration` di latar belakang. Model agrometeorologi mendeteksi suhu riil musim hujan sedikit lebih hangat dari klimatologi historis, menghasilkan deviasi terbobot `applied_offset_days = -2` hari.
+   * Prediksi jendela panen untuk seluruh blok tanaman berikutnya di Kabupaten Subang secara otomatis menjadi 2 hari lebih presisi. Empat ubin indikator dampak di dasbor koperasi kini menampilkan angka penghematan riil dan tonase panen yang berhasil diselamatkan.
 
 ---
 
