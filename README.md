@@ -4,7 +4,11 @@
 
 <br/>
 
-# 🌾 TERRION
+<a href="https://terrion.vercel.app">
+  <img src="./assets/logo-terion.png" alt="Logo Terrion" width="280" />
+</a>
+
+<br/>
 
 ### Satu catatan tanam, empat keluaran. Satu rencana tanam, satu musim yang tidak menabrak dirinya sendiri.
 
@@ -16,7 +20,7 @@
 
 **Submission for ITECHNO CUP 2026 — Web Development (Mahasiswa)**
 
-**By Tim S2U — BINUS University**
+**By Tim To The Moon — BINUS University**
 
 </div>
 
@@ -131,7 +135,7 @@
 
 ## 👥 Anggota Tim
 
-**Tim S2U — Universitas Bina Nusantara**
+**Tim To The Moon — Universitas Bina Nusantara**
 
 | Nama | NIM | Peran | GitHub |
 |---|---|---|---|
@@ -6372,7 +6376,7 @@ Proyek ini dilisensikan di bawah [MIT License](LICENSE).
 
 <div align="center">
 
-**Made with 🌾 by Tim S2U — BINUS University, for ITECHNO CUP 2026**
+**Made with 🌾 by Tim To The Moon — BINUS University, for ITECHNO CUP 2026**
 
 *Seluruh angka dalam dokumen ini diberi label provenans sesuai [Catatan Metodologi Angka](#-catatan-metodologi-angka).*
 
