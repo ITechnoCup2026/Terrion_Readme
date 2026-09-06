@@ -6,7 +6,7 @@
 
 **Sistem Pencatatan & Perencanaan Produksi untuk Koperasi Tani Indonesia**
 
-[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Kunjungi_Situs-success?style=for-the-badge)](https://terrion.id)
+[![Live Demo](https://img.shields.io/badge/🚀_Live_Demo-Kunjungi_Situs-success?style=for-the-badge)](https://terrion.vercel.app)
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-181717?style=for-the-badge&logo=github)](https://github.com/BRYAN1309/terrion)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
@@ -73,6 +73,13 @@
   - [6.5 Database Schema (ERD)](#65-database-schema-erd)
   - [6.6 Folder Project Structure](#66-folder-project-structure)
 - [⚙️ 7. Instalasi & Setup](#️-7-instalasi--setup)
+  - [7.0 Layanan yang Sudah Berjalan](#70-layanan-yang-sudah-berjalan)
+  - [7.1 Prerequisites](#71-prerequisites)
+  - [7.2 Clone Ketiga Repositori](#72-clone-ketiga-repositori)
+  - [7.3 Jalur A — Tanpa Docker](#73-jalur-a--instalasi-tanpa-docker)
+  - [7.4 Jalur B — Dengan Docker](#74-jalur-b--instalasi-dengan-docker)
+  - [7.5 Verifikasi Instalasi](#75-verifikasi-instalasi)
+  - [7.6 Pemecahan Masalah](#76-pemecahan-masalah)
 - [🚀 8. Penggunaan](#-8-penggunaan)
 - [📚 9. API Documentation](#-9-api-documentation)
   - [9.1 Aturan Umum](#91-aturan-umum)
@@ -2048,7 +2055,7 @@ Log            : structlog           (JSON, request_id merambat dari sisi Go)
 Pengujian      : pytest + pytest-asyncio
 Lint           : ruff (line-length 100, target py312)
 Build          : hatchling
-Deploy         : Fly.io region `sin` · scale-to-zero · 512 MB · 1 vCPU
+Deploy         : Railway (produksi) · Fly.io `sin` tersedia sebagai alternatif
 ```
 
 | Ukuran repo | Angka |
@@ -2731,7 +2738,461 @@ Terrion_AI/
 
 ## ⚙️ 7. Instalasi & Setup
 
-> 🚧 **Belum diisi.** Akan memuat *Prerequisites* dan langkah instalasi terpisah untuk **Frontend**, **Backend**, dan **AI service**.
+Terrion adalah **tiga repositori terpisah**. Bagian ini menyediakan **dua jalur** yang keduanya lengkap — pilih satu, jangan campur:
+
+| Jalur | Untuk siapa | Waktu | Yang dibutuhkan |
+|---|---|:--:|---|
+| **[Jalur A — Tanpa Docker](#73-jalur-a--instalasi-tanpa-docker)** | Pengembangan sehari-hari, *hot reload*, menjalankan uji | ± 15 menit | Go, Node, Python terpasang di mesin |
+| **[Jalur B — Dengan Docker](#74-jalur-b--instalasi-dengan-docker)** | Penilaian juri, demo, produksi | ± 8 menit | Hanya Docker |
+
+> **Urutan yang benar: Backend dulu, lalu Frontend.** Layanan AI **opsional** — bila `AI_SERVICE_URL` kosong, backend memakai solver `fallback` di dalam Go dan **seluruh fitur tetap berjalan**. Ini bukan penyederhanaan untuk instalasi; ini [ADR-0008](#524-sepuluh-adr--keputusan-arsitektur-yang-tertulis).
+
+---
+
+### 7.0 Layanan yang Sudah Berjalan
+
+Ketiga layanan sudah ter-*deploy*. Untuk sekadar mencoba, **tidak perlu memasang apa pun** — cukup buka tautan frontend.
+
+| Layanan | URL | Platform |
+|---|---|---|
+| **Frontend** | `https://terrion.vercel.app` | Vercel |
+| **Backend API** | `https://terrionbackend-production.up.railway.app` | Railway |
+| **Layanan AI** | `https://terrionai-production.up.railway.app` | Railway |
+
+```bash
+curl https://terrionbackend-production.up.railway.app/api/health
+curl https://terrionai-production.up.railway.app/ready
+```
+
+Frontend juga bisa dijalankan lokal sambil menunjuk ke backend produksi — berguna untuk mengembangkan antarmuka tanpa menyiapkan basis data sama sekali:
+
+```env
+# Terrion_Frontend/.env.local
+NEXT_PUBLIC_API_URL=https://terrionbackend-production.up.railway.app
+```
+
+> ⚠️ **Tentang rahasia.** Seluruh nilai `.env` di bab ini adalah **placeholder**. Kunci sungguhan — kata sandi basis data, `SUPABASE_SERVICE_ROLE_KEY`, token Redis, `CRON_SECRET`, `AI_SERVICE_TOKEN`, `LLM_API_KEY` — **tidak pernah ditulis ke repositori ini maupun ke dokumen mana pun**. `.env` masuk `.gitignore` di ketiga repo. `SUPABASE_SERVICE_ROLE_KEY` khususnya melewati seluruh RLS: ia setara akses penuh ke basis data, dan hanya boleh hidup di variabel lingkungan platform *hosting*.
+
+---
+
+### 7.1 Prerequisites
+
+#### Jalur A — tanpa Docker
+
+| Perangkat | Versi | Untuk |
+|---|---|---|
+| **Go** | ≥ 1.25 | `Terrion_Backend` |
+| **Node.js** | ≥ 20 (diuji pada 22.14) | `Terrion_Frontend` |
+| **pnpm** | ≥ 11 (`corepack enable`) | `Terrion_Frontend` |
+| **Python** | ≥ 3.12 | `Terrion_AI` — opsional |
+| **Git** | mana saja | ketiganya |
+
+#### Jalur B — dengan Docker
+
+| Perangkat | Versi |
+|---|---|
+| **Docker Engine** | ≥ 24 |
+| **Docker Compose** | ≥ 2.20 (`docker compose`, bukan `docker-compose`) |
+
+#### Layanan terkelola — dibutuhkan **kedua** jalur
+
+Ketiganya punya paket gratis yang cukup untuk menjalankan Terrion sepenuhnya:
+
+| Layanan | Dipakai untuk | Yang perlu disalin |
+|---|---|---|
+| **[Supabase](https://supabase.com)** | Postgres + Auth (GoTrue) | `DB_*`, `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_JWT_SECRET` |
+| **[Upstash Redis](https://upstash.com)** | Sesi + cache katalog + cache rencana | `REDIS_URL` |
+| **Penyedia LLM** *(opsional)* | Narasi rencana | `LLM_API_KEY` — **boleh dilewati**, bawaannya `template` |
+
+> **Di mana mencarinya di Supabase.** `DB_*` ada di *Project Settings → Database*; `SUPABASE_ANON_KEY` dan `SUPABASE_SERVICE_ROLE_KEY` di *Project Settings → API*; `SUPABASE_JWT_SECRET` di *Project Settings → API → JWT Settings*.
+
+---
+
+### 7.2 Clone Ketiga Repositori
+
+```bash
+mkdir Terrion && cd Terrion
+
+git clone https://github.com/<org>/Terrion_Backend.git
+git clone https://github.com/<org>/Terrion_Frontend.git
+git clone https://github.com/<org>/Terrion_AI.git      # opsional
+```
+
+Struktur yang diharapkan:
+
+```
+Terrion/
+├── Terrion_Backend/     # Go  — API, mesin agronomi, pemilik basis data
+├── Terrion_Frontend/    # Next.js — seluruh antarmuka
+└── Terrion_AI/          # Python — solver CP-SAT + narasi (opsional)
+```
+
+---
+
+### 7.3 Jalur A — Instalasi Tanpa Docker
+
+#### 7.3.1 Backend — `Terrion_Backend`
+
+**1. Salin konfigurasi**
+
+```bash
+cd Terrion_Backend
+cp .env.example .env
+```
+
+**2. Isi `.env`**
+
+```env
+# --- Aplikasi ---
+APP_NAME=terrion-backend
+APP_ENV=development
+WEB_PORT=8000
+WEB_PREFORK=false
+WEB_CORS_ORIGINS=http://localhost:3000
+LOG_LEVEL=4
+
+# --- Basis data (Supabase → Project Settings → Database) ---
+DB_HOST=db.xxxxxxxx.supabase.co
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=<kata sandi basis data>
+DB_NAME=postgres
+DB_SSLMODE=require
+DB_POOL_IDLE=10
+DB_POOL_MAX=100
+DB_POOL_LIFETIME=300
+
+# --- Redis (Upstash) — sesi dan cache ---
+REDIS_URL=rediss://default:<token>@<host>.upstash.io:6379
+
+# --- Cron cuaca. Kosong = endpoint menolak dengan 503, bukan menerima semua ---
+CRON_SECRET=<openssl rand -hex 32>
+
+# --- Supabase Auth ---
+SUPABASE_URL=https://xxxxxxxx.supabase.co
+SUPABASE_ANON_KEY=<anon key>
+SUPABASE_SERVICE_ROLE_KEY=<service role key>
+SUPABASE_JWT_SECRET=<jwt secret>
+
+# --- Layanan AI. KOSONGKAN untuk memakai solver fallback di dalam Go ---
+AI_SERVICE_URL=
+AI_SERVICE_TOKEN=
+AI_SERVICE_TIMEOUT_MS=3500
+AI_WARMUP_INTERVAL=0
+```
+
+> ⚠️ **`CRON_SECRET` kosong berarti `POST /api/cron/weather` menolak setiap permintaan dengan `503`, bukan menerima semuanya.** Layanan tanpa rahasia yang dikonfigurasi tidak punya cara membedakan pemanggil yang sah.
+
+**3. Jalankan migrasi**
+
+```bash
+go run ./cmd/migrate up          # menerapkan 16 migrasi
+go run ./cmd/migrate version     # memastikan versinya
+```
+
+| Perintah | Fungsi |
+|---|---|
+| `up` | Menerapkan seluruh migrasi tertunda |
+| `down` | Mundur satu langkah |
+| `version` | Melaporkan versi yang sudah diterapkan |
+| `force <ver>` | Membaseline basis data yang skemanya sudah ada |
+| `drop` | **Menghapus seluruh tabel** — hanya untuk pengembangan |
+
+> **`cmd/migrate` adalah satu-satunya jalur perubahan skema.** Tidak ada `AutoMigrate` — skema produksi harus bisa dibaca, di-*review*, dan **dikembalikan**.
+
+**4. Isi data contoh** *(opsional, tetapi sangat disarankan untuk demo)*
+
+```bash
+go run ./cmd/seed -reset -accounts -weather
+```
+
+| Flag | Bawaan | Fungsi |
+|---|:--:|---|
+| `-reset` | `false` | Hapus data demo lama sebelum mengisi |
+| `-reset-only` | `false` | Hapus saja, lalu berhenti |
+| `-accounts` | `true` | Buat akun demo di Supabase |
+| `-weather` | `true` | Ambil riwayat Open-Meteo per sel grid |
+| `-password` | `terrion-demo-2026` | Kata sandi seluruh akun demo |
+| `-email-domain` | `terrion.test` | Domain email akun demo |
+
+**5. Buat akun secara manual** *(bila tidak memakai `-accounts`)*
+
+```bash
+# Koperasi baru + pengurusnya
+go run ./cmd/register -role pengurus \
+  -create-cooperative "KDMP Sukamandi" \
+  -village Sukamandi -district Subang -province "Jawa Barat" \
+  -email pengurus@terrion.test
+
+# Kader pada koperasi yang sudah ada
+go run ./cmd/register -role kader -cooperative <uuid-koperasi> -email kader@terrion.test
+
+# Pembeli — tidak punya koperasi
+go run ./cmd/register -role buyer -organisation "PT Pangan Nusantara" -email buyer@terrion.test
+```
+
+> **Kata sandi dicetak satu kali.** Catat saat itu juga.
+
+**6. Jalankan**
+
+```bash
+go run ./cmd/web                 # http://localhost:8000
+curl http://localhost:8000/api/health
+# {"data":{"status":"ok","service":"terrion-backend"}}
+```
+
+*Hot reload* dengan [Air](https://github.com/air-verse/air) — konfigurasinya sudah ada di `.air.toml`:
+
+```bash
+go install github.com/air-verse/air@latest
+air
+```
+
+---
+
+#### 7.3.2 Frontend — `Terrion_Frontend`
+
+```bash
+cd ../Terrion_Frontend
+corepack enable                  # menyediakan pnpm sesuai packageManager
+pnpm install
+```
+
+Buat `.env.local`:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000
+```
+
+> **Hanya satu variabel.** Frontend **tidak memegang satu pun rahasia** — tidak ada kunci basis data, tidak ada kunci Supabase, tidak ada token. Seluruh percakapan HTTP melewati `lib/api/client.ts`, dan sesi hidup sebagai cookie `HttpOnly` yang tidak bisa dibaca JavaScript.
+
+Bangun aset sprite *(sekali saja, atau setelah seni sumber berubah)*:
+
+```bash
+pnpm build:sprites               # assets/ → public/sprites/
+```
+
+Jalankan:
+
+```bash
+pnpm dev                         # http://localhost:3000
+```
+
+---
+
+#### 7.3.3 Layanan AI — `Terrion_AI` *(opsional)*
+
+```bash
+cd ../Terrion_AI
+
+python -m venv .venv
+source .venv/bin/activate         # Windows: .venv\Scripts\activate
+
+pip install -e ".[dev]"
+cp .env.example .env
+```
+
+Isi `.env` — **hanya satu baris yang wajib**:
+
+```env
+# Wajib. Harus SAMA PERSIS dengan AI_SERVICE_TOKEN di sisi Go.
+# Kosong berarti layanan menolak SEMUA permintaan, bukan menerima semuanya.
+AI_SERVICE_TOKEN=<openssl rand -hex 32>
+
+# Bawaan `template`: layanan berjalan penuh, lulus seluruh uji, dan bisa
+# didemokan TANPA satu pun kunci API. Kalimat dirakit dari fakta terhitung.
+LLM_PROVIDER=template
+LLM_API_KEY=
+
+# Produksi memakai penyedia berskema OpenAI. Model dipilih dengan diukur,
+# bukan dari namanya -- lihat benchmark enam model di 5.2.5.
+#   LLM_PROVIDER=sumopod
+#   LLM_BASE_URL=https://ai.sumopod.com/v1
+#   LLM_MODEL=gpt-5.4-nano
+#   LLM_TIMEOUT_MS=2800
+#   LLM_MAX_TOKENS=400
+
+SOLVER_TIME_LIMIT_MS=1000
+MONTE_CARLO_DRAWS=2000
+LOG_LEVEL=INFO
+```
+
+Jalankan:
+
+```bash
+uvicorn app.main:app --port 8081 --workers 1
+curl http://localhost:8081/health
+```
+
+> ⚠️ **`--workers 1` bukan penghematan memori.** Dua proses berarti **dua state RNG yang berbeda**, dan itu melanggar jaminan determinisme kontrak (`P4`).
+
+**Hubungkan ke backend** — kembali ke `Terrion_Backend/.env`:
+
+```env
+AI_SERVICE_URL=http://localhost:8081
+AI_SERVICE_TOKEN=<token yang sama persis>
+```
+
+Lalu jalankan ulang backend. Verifikasi: `GET /api/plans/propose` mengembalikan `"engine": "ai-service"`. Bila masih `"fallback"`, token atau URL-nya belum cocok — dan **fitur tetap berjalan**.
+
+---
+
+### 7.4 Jalur B — Instalasi Dengan Docker
+
+Backend dan layanan AI **sudah punya `Dockerfile` masing-masing**. Frontend di-*deploy* ke Vercel dan tidak punya Dockerfile — pada jalur ini ia dijalankan lewat image Node resmi.
+
+#### 7.4.1 Build dan jalankan tiap image sendiri-sendiri
+
+**Backend**
+
+```bash
+cd Terrion_Backend
+docker build -t terrion-backend .
+
+# Migrasi dulu — biner terpisah di dalam image yang sama
+docker run --rm --env-file .env terrion-backend /app/migrate up
+
+docker run -d --name terrion-backend \
+  --env-file .env -p 8000:8080 terrion-backend
+```
+
+Image-nya **multi-stage**: tahap `golang:1.26-alpine` membangun tiga biner (`terrion`, `migrate`, `register`) dengan `CGO_ENABLED=0 -trimpath -ldflags="-s -w"`, lalu tahap kedua `alpine:3.21` hanya membawa biner + berkas migrasi, berjalan sebagai **user non-root `uid 10001`**. Toolchain Go tidak ikut ke produksi.
+
+**Layanan AI**
+
+```bash
+cd ../Terrion_AI
+docker build -t terrion-ai .
+docker run -d --name terrion-ai --env-file .env -p 8081:8080 terrion-ai
+```
+
+Port di dalam kontainer dibaca dari `$PORT` bila ada, jatuh ke `8080` bila tidak — itulah yang membuat image yang sama jalan di Railway (menyuntikkan `$PORT`) maupun Fly.io (tidak).
+
+**Frontend**
+
+```bash
+cd ../Terrion_Frontend
+docker run -d --name terrion-frontend \
+  -v "$PWD":/app -w /app \
+  -e NEXT_PUBLIC_API_URL=http://localhost:8000 \
+  -p 3000:3000 node:22-alpine \
+  sh -c "corepack enable && pnpm install && pnpm dev"
+```
+
+#### 7.4.2 Satu perintah untuk ketiganya — `docker-compose.yml`
+
+> **Berkas ini belum ada di repositori.** Simpan isi berikut sebagai `docker-compose.yml` di direktori `Terrion/` (induk ketiga repo).
+
+```yaml
+services:
+  backend:
+    build: ./Terrion_Backend
+    env_file: ./Terrion_Backend/.env
+    environment:
+      WEB_CORS_ORIGINS: http://localhost:3000
+      AI_SERVICE_URL: http://ai:8080
+    ports:
+      - "8000:8080"
+    # Migrasi selalu berjalan sebelum peladen — urutan yang sama dengan railway.json
+    command: sh -c "/app/migrate up && /app/terrion"
+    depends_on:
+      ai:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  ai:
+    build: ./Terrion_AI
+    env_file: ./Terrion_AI/.env
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD", "python", "-c",
+             "import urllib.request;urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
+      - ./Terrion_Frontend:/app
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
+    ports:
+      - "3000:3000"
+    command: sh -c "corepack enable && pnpm install && pnpm dev"
+    depends_on:
+      backend:
+        condition: service_healthy
+```
+
+```bash
+docker compose up --build           # jalankan ketiganya
+docker compose logs -f backend      # pantau satu layanan
+docker compose down                 # hentikan
+```
+
+| Catatan | Keterangan |
+|---|---|
+| **Postgres dan Redis tidak ada di compose** | Keduanya **layanan terkelola** (Supabase, Upstash). Menjalankan Postgres lokal berarti skema yang berbeda dari produksi, dan itu justru sumber galat |
+| `AI_SERVICE_URL: http://ai:8080` | Nama layanan compose, bukan `localhost` |
+| **Menghapus blok `ai:`** | Sah dan didukung. Hapus juga `AI_SERVICE_URL` dan `depends_on`; backend memakai solver `fallback` |
+| `NEXT_PUBLIC_API_URL` | Tetap `localhost:8000` — nilainya dibaca **peramban**, bukan kontainer |
+
+---
+
+### 7.5 Verifikasi Instalasi
+
+Jalankan berurutan. Ketiganya harus lulus sebelum instalasi dianggap selesai:
+
+```bash
+# 1. Backend hidup
+curl http://localhost:8000/api/health
+# {"data":{"status":"ok","service":"terrion-backend"}}
+
+# 2. Basis data terisi — daftar komoditas referensi
+curl http://localhost:8000/api/commodities | head -c 200
+
+# 3. Layanan AI siap (bila dipakai)
+curl http://localhost:8081/ready
+# {"status":"ok","contract_version":"1.0","cpsat":true,"llm_provider":"template"}
+
+# 4. Frontend merender
+curl -s -o /dev/null -w "%{http_code}\n" http://localhost:3000
+# 200
+```
+
+Lalu buka **`http://localhost:3000`** dan masuk dengan akun demo (`kader@terrion.test` / `terrion-demo-2026` bila memakai `-accounts`).
+
+**Uji cepat bahwa seluruh sistem benar** — 1.295 uji, tanpa Docker, tanpa basis data, tanpa kunci API:
+
+```bash
+cd Terrion_Backend  && go test ./...     # 482 uji
+cd ../Terrion_Frontend && pnpm test      # 729 uji
+cd ../Terrion_AI    && pytest -q         # 84 uji
+```
+
+---
+
+### 7.6 Pemecahan Masalah
+
+| Gejala | Penyebab | Perbaikan |
+|---|---|---|
+| Frontend menampilkan layar *"backend tidak bisa dihubungi"* | Backend mati, atau `NEXT_PUBLIC_API_URL` salah | Cek `/api/health`. **Layar ini sengaja bukan pengalihan ke `/login`** — *"saya tidak bisa bertanya"* harus tetap bisa dibedakan dari *"jawabannya tidak"* |
+| `401` pada setiap permintaan setelah berhasil masuk | Cookie tidak terkirim lintas port | Pastikan `WEB_CORS_ORIGINS` memuat `http://localhost:3000` **persis**, tanpa garis miring di akhir |
+| `503` pada `POST /api/cron/weather` | `CRON_SECRET` kosong | Isi, lalu jalankan ulang backend |
+| `GET /api/plans/propose` selalu `"engine": "fallback"` | `AI_SERVICE_URL` kosong, atau token tidak cocok | Samakan `AI_SERVICE_TOKEN` di kedua `.env`. **Ini bukan kegagalan** — rencana tetap terbit |
+| `422 plan_no_climate_normals` | Riwayat cuaca sel grid belum terisi | `go run ./cmd/seed -weather`, atau panggil cron cuaca |
+| Lahan muncul dengan tanda *degraded* | Lahan belum punya data cuaca | Sama seperti di atas. **Lahan tetap muncul, ditandai** — bukan hilang dari daftar |
+| Sprite tanaman kosong di layar lahan | `public/sprites/` belum dibangun | `pnpm build:sprites` |
+| `go test` gagal dengan galat cgo | Toolchain C tidak ada | **Seharusnya tidak terjadi** — uji memakai `glebarez/sqlite` murni-Go. Periksa `CGO_ENABLED=0` |
+| Migrasi gagal: *"Dirty database version"* | Migrasi sebelumnya terhenti di tengah | `go run ./cmd/migrate force <versi-terakhir-yang-baik>`, lalu `up` |
+| Docker: backend `unhealthy` | Migrasi gagal sebelum peladen menyala | `docker compose logs backend` — galatnya ada di baris `migrate up` |
 
 ---
 
@@ -2759,8 +3220,8 @@ Terrion memaparkan **dua** API yang sifatnya berbeda, dan membedakannya adalah h
 #### 9.1.1 Base URL
 
 ```
-Pengembangan : http://localhost:8080/api
-Produksi     : https://<domain-backend>/api
+Pengembangan : http://localhost:8000/api
+Produksi     : https://terrionbackend-production.up.railway.app/api
 ```
 
 Frontend membacanya dari `NEXT_PUBLIC_API_URL`, dan **seluruh percakapan HTTP melewati satu berkas**: `lib/api/client.ts`.
@@ -4091,7 +4552,7 @@ Seluruh kode yang bisa muncul di `errors`, dikelompokkan menurut ranahnya.
 #### cURL — alur pembeli dari nol
 
 ```bash
-BASE=http://localhost:8080/api
+BASE=http://localhost:8000/api
 
 # 1. Daftar sebagai pembeli
 curl -s -X POST "$BASE/auth/signup" \
