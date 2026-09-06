@@ -4224,7 +4224,8 @@ sequenceDiagram
 ##### 2. Penyusunan Rencana Tanam Musim Depan (`/rencana/susun`)
 * **Tujuan**: Menjawab tantangan klasik pertanian di mana petani menanam serentak tanpa koordinasi, menyebabkan kejatuhan harga saat panen raya.
 * **Tindakan**:
-  1. Akses menu **Rencana Tanam** $ightarrow$ klik tombol **Susun Rencana**.
+  1. Akses menu **Rencana Tanam** $
+ightarrow$ klik tombol **Susun Rencana**.
   2. Pilih musim target: **MT I (Oktober – Maret)** atau **MT II (April – September)**.
   3. Masukkan preferensi tujuan operasional koperasi melalui kalimat bebas atau memilih salah satu dari **3 Skenario Preskriptif**:
      * **Skenario Aman (Anti-Tabrakan)**: Meminimalkan puncak panen mingguan agar kurva distribusi panen tetap berada di bawah ambang kapasitas pasca-panen.
@@ -4309,14 +4310,16 @@ stateDiagram-v2
 * **Tampilan Permainan Lahan (Farm Canvas)**: Lahan divisualisasikan dalam bentuk ubin *pixel art* berpagar. Luas petak tanah dan tanaman mencerminkan skala proporsional riil (1 ubin $pprox$ fraksi hektar tetap).
 * **Penggeser Waktu (Interactive Time Slider)**: Kader dapat menggeser linimasa hari untuk melihat visualisasi fase vegetatif hingga pematangan bulir. Seluruh kalkulasi akumulasi suhu (GDD) dieksekusi di peramban klien tanpa melakukan *fetch request* ke peladen.
 * **Operasi Pemecahan Blok (Split Block)**:
-  * Jika suatu blok seluas 1,0 ha ternyata disisipi tanaman sekunder seluas 0,3 ha, kader mengklik blok tersebut $ightarrow$ pilih **Pecah Blok**.
+  * Jika suatu blok seluas 1,0 ha ternyata disisipi tanaman sekunder seluas 0,3 ha, kader mengklik blok tersebut $
+ightarrow$ pilih **Pecah Blok**.
   * Panel memvalidasi batas maksimum luas pecahan secara instan di peramban.
   * Menekan kirim memicu `POST /api/blocks/:id/split`. Blok baru terbit dengan huruf urut berikutnya tanpa mengubah total luas fisik lahan.
 
 ##### 3. Pencatatan Hasil Panen Aktual & Kalibrasi Model Mandiri
 * **Tujuan**: Menutup siklus tanam satu blok dan memperbarui kecerdasan akurasi prediksi masa depan.
 * **Tindakan**:
-  1. Klik blok tanaman yang telah selesai dipanen $ightarrow$ klik tombol **Catat Panen**.
+  1. Klik blok tanaman yang telah selesai dipanen $
+ightarrow$ klik tombol **Catat Panen**.
   2. Masukkan **Tanggal Panen Riil** (`YYYY-MM-DD`) dan **Hasil Panen Riil** (satuan kg timbangan).
   3. Mengisi **Harga per kg** dan **Tanggal Pembayaran** jika transaksi jual beli dengan tengkulak/pembeli telah selesai (opsional: boleh dikosongkan jika uang belum cair agar tidak memaksakan data fiktif).
   4. Tekan **Simpan Panen** (`PATCH /api/blocks/:id/harvest`).
@@ -4434,7 +4437,10 @@ Dirancang untuk masyarakat umum, akademisi, instansi dinas pertanian daerah, dan
 ##### 2. Eksplorasi Atlas Pangan Indonesia (`/atlas`)
 * **Pengalaman Navigasi Peta Layar Penuh (Full-Screen Atlas)**:
   * Menjelajah peta kepulauan Indonesia dengan kontrol interaktif: *scroll* untuk zoom in/out, *drag* untuk menggeser wilayah, dan tombol `Esc` pada papan ketik untuk kembali mundur satu tingkat hirarki wilayah.
-  * Hierarki penelusuran 4 tingkat: **Nasional $ightarrow$ Provinsi $ightarrow$ Kabupaten $ightarrow$ Pin Koperasi**.
+  * Hierarki penelusuran 4 tingkat: **Nasional $
+ightarrow$ Provinsi $
+ightarrow$ Kabupaten $
+ightarrow$ Pin Koperasi**.
   * Pin koperasi berupa ikon lingkaran emas berukuran 34 px dengan area klik responsif yang nyaman diakses melalui perangkat seluler.
   * Mengklik pin koperasi membuka panel samping interaktif yang menampilkan profil kelembagaan koperasi, daftar hamparan lahan terdaftar, dan komoditas unggulan yang dibudidayakan.
 
@@ -4499,7 +4505,8 @@ Keamanan sistem Terrion tidak mengandalkan penyembunyian tombol di antarmuka (*s
 |---|---|---|
 | Belum Masuk (*Unauthenticated*) | `/dashboard`, `/plots/*`, `/rencana/*`, `/purchases/*`, `/requests` | Dialihkan ke `/login` |
 | Akun Pembeli (`buyer`) | `/dashboard`, `/plots`, `/rencana`, `/purchases` | Dialihkan ke `/catalog` |
-| Akun Pembeli (`buyer`) | `/requests` | Ditolak penjaga hak akses $ightarrow$ dialihkan ke `/catalog` |
+| Akun Pembeli (`buyer`) | `/requests` | Ditolak penjaga hak akses $
+ightarrow$ dialihkan ke `/catalog` |
 | Akun Kader (`kader`) | `/requests` (menu khusus pengurus) | Dialihkan ke `/dashboard` |
 | Akun Kader / Pengurus | `/catalog`, `/catalog/[id]` | Dialihkan ke `/dashboard` (fokus pada operasi internal) |
 | Akun Kader / Pengurus | `/my-requests` (pelacakan pembeli) | Dialihkan ke `/requests` |
