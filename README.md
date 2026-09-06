@@ -71,6 +71,11 @@
   - [6.3 Backend Architecture](#63-backend-architecture)
   - [6.4 AI Architecture](#64-ai-architecture)
   - [6.5 Database Schema (ERD)](#65-database-schema-erd)
+    - [6.5.1 Diagram Relasi Entitas (ERD)](#651-diagram-relasi-entitas-entity-relationship-diagram)
+    - [6.5.2 Partisi Delapan Ranah & Kamus Data](#652-partisi-delapan-ranah--kamus-data-entitas)
+    - [6.5.3 Arsitektur Keamanan & RLS](#653-arsitektur-keamanan-row-level-security-rls--isolasi-multi-tenant)
+    - [6.5.4 Invarian, Konstrain, & Partial Indexes](#654-invarian-integritas-pengecekan-bisnis--kinerja-indeks)
+    - [6.5.5 Kronologi 16 Pasang Migrasi SQL](#655-kronologi--analisis-16-pasang-migrasi-sql)
   - [6.6 Folder Project Structure](#66-folder-project-structure)
 - [⚙️ 7. Instalasi & Setup](#️-7-instalasi--setup)
   - [7.0 Layanan yang Sudah Berjalan](#70-layanan-yang-sudah-berjalan)
@@ -114,10 +119,8 @@
 | Nama | NIM | Peran | GitHub |
 |---|---|---|---|
 | **Bryan Thanaya** | 2702334784 | Project Lead · Backend & AI Engineer | [@BRYAN1309](https://github.com/BRYAN1309) |
-| **Lavinia Nataniela Novyandi** | 2702331763 | `[PERAN — mis. Frontend Developer & UI/UX Designer]` | [@`[username]`](https://github.com/) |
-| **David Christian** | 2702253143 | `[PERAN — mis. Frontend Developer & QA]` | [@`[username]`](https://github.com/) |
-
-> 🔧 **Yang masih perlu diisi:** peran definitif dan tautan GitHub untuk dua anggota. Rubrik *Dokumentasi & Repositori* menilai kerapian repositori — pastikan setiap nama di tabel ini punya riwayat *commit* yang terlihat.
+| **Lavinia Nataniela Novyandi** | 2702331763 | Frontend Developer · UI/UX Designer | [@lavinianataniela05](https://github.com/lavinianataniela05) |
+| **David Christian** | 2702253143 | Fullstack Developer · AI Engineer | [@Myaneeeee](https://github.com/Myaneeeee) |
 
 ---
 
@@ -609,27 +612,6 @@ Tiga kabupaten produsen padi terbesar Jawa Barat — **Indramayu, Karawang, Suba
 
 **Uji sensitivitas [DITURUNKAN]:** bila Terrion hanya mengambil **30%** dari pagu digitalisasi per koperasi (ARPU Rp1,8 juta, bukan Rp6 juta), maka TAM = Rp144 miliar, SAM = Rp52 miliar, dan SOM Tahun 3 = Rp540 juta. **Urutan kelayakannya tidak berubah** — dan itulah yang diuji oleh analisis sensitivitas ini.
 
----
-
-##### 📐 Spesifikasi Visual Figma — Diagram TAM/SAM/SOM
-
-> Blok ini adalah spesifikasi untuk aset Figma yang menggantikan tabel di atas pada dokumen final.
-
-**Bentuk:** tiga lingkaran konsentris (bukan corong), karena SAM adalah **himpunan bagian** dari TAM, bukan tahap berikutnya.
-
-| Lapis | Label utama | Sub-label | Angka besar | Angka kecil | Warna |
-|---|---|---|---|---|---|
-| Terluar | **TAM** | Seluruh koperasi desa & koperasi tani Indonesia | **80.000 koperasi** | Rp480 M/thn · 27,8 juta petani di baliknya | Hijau pucat, isi 12% |
-| Tengah | **SAM** | Koperasi berbasis tanaman pangan di Jawa · Sumatera · Sulawesi | **28.900 koperasi** | Rp173 M/thn · filter 54,8% × 66% | Hijau sedang, isi 35% |
-| Terdalam | **SOM** | Koridor Pantura Jawa Barat, 3 tahun | **300 koperasi** | Rp1,8 M/thn · ±36.000 petani · ±18.700 ha | Emas pekat, isi 100% |
-
-**Elemen wajib pada kanvas:**
-1. **Kotak jangkar ARPU** di sisi kanan: `Rp480 miliar ÷ 80.000 koperasi = Rp6 juta/koperasi/tahun — sumber: Kementerian Koperasi, 2026`.
-2. **Pita label metodologi** di kaki gambar: legenda tiga warna kecil untuk `DIKUTIP` / `DITURUNKAN` / `ASUMSI`, dan setiap angka pada gambar diberi titik warna yang sesuai. *(Ini pembeda visual: hampir tidak ada proposal yang menandai provenans angkanya di gambar.)*
-3. **Anak panah beachhead** dari lingkaran SOM ke peta mini Pantura Jabar dengan pin Subang.
-4. Jangan gambar corong penjualan — ia menyiratkan konversi, padahal ini penyaringan kelayakan teknis.
-
----
 
 ### 1.8 Value Proposition
 
@@ -716,23 +698,6 @@ Dua sumbu dipilih karena keduanya adalah sumbu tempat seluruh pesaing benar-bena
 2. **KATAM Terpadu ada di tengah-bawah, dan itu benar untuk misinya.** Ia menjawab *"kecamatan ini boleh mulai tanam kapan"*. Terrion **tidak menggantikannya, ia melanjutkannya** — dengan sikap yang persis sama dengan sikapnya terhadap e-RDKK.
 3. **Sumbu X memisahkan kategori, bukan mutu.** Eratani dan Agree adalah pemain kuat di ruang mereka; Terrion tidak bersaing memperebutkan petani yang sama, karena unit kerjanya berbeda. Ini membuat posisi Terrion **komplementer, bukan konfrontatif** — dan komplementer jauh lebih mudah dijual kepada pemerintah daerah dan koperasi.
 
----
-
-##### 📐 Spesifikasi Visual Figma — Perceptual Map
-
-| Elemen | Ketentuan |
-|---|---|
-| **Kanvas** | 1600 × 1000 px, latar kertas hangat (bukan putih murni) |
-| **Sumbu X** | Kiri: *"Lahan / petani perorangan"* → Kanan: *"Koordinasi antar-anggota dalam satu koperasi"* |
-| **Sumbu Y** | Bawah: *"Menampilkan & menasihati"* → Atas: *"Menuliskan keputusan pra-musim ke sistem pencatatan"* |
-| **Titik pesaing** | Lingkaran abu-abu Ø 16 px, label di kanan titik, ukuran font 14 |
-| **Titik Terrion** | Bintang/pin emas Ø 34 px (ukuran yang sama dengan pin Atlas di produk), label tebal, dengan halo lembut |
-| **Kuadran kanan-atas** | Diberi arsir sangat tipis + label *"Kuadran kosong: tidak ada pemain"* — **inilah pesan utama gambar, bukan titik Terrion-nya** |
-| **Koordinat** | Buku tulis/Excel (1,1) · Marketplace hasil tani (2,4) · Farm mgmt software kebun komersial (2,8) · Eratani (3,6) · KATAM Terpadu (4,3) · Agree/Telkom (4,5) · e-RDKK/SIMLUHTAN (6,4) · Platform digitalisasi KDMP generik (7,2) · **Terrion (9,9)** |
-| **Kaki gambar** | Satu baris: *"Penempatan disusun dari cakupan fungsi yang dipublikasikan masing-masing solusi per September 2026; ia menggambarkan perbedaan kategori, bukan penilaian mutu."* — **jangan dihilangkan**; baris ini yang membuat peta tidak terbaca sebagai klaim superioritas yang tidak diukur |
-| **Aksesibilitas** | Warna tidak boleh menjadi satu-satunya penanda (aturan R10 produk): titik Terrion dibedakan lewat **bentuk** (bintang) dan **ukuran**, bukan hanya warna |
-
----
 
 
 ## ✨ 2. Penjelasan Fitur
@@ -1937,7 +1902,7 @@ graph TB
     end
 
     subgraph aizone["Zona tanpa data pribadi — tanpa kredensial"]
-        aisvc["Terrion_AI<br/>Python 3.12 · FastAPI · Fly.io<br/>CP-SAT · Monte Carlo · agen narasi"]
+        aisvc["Terrion_AI<br/>Python 3.12 · FastAPI · Railway<br/>CP-SAT · Monte Carlo · agen narasi"]
     end
 
     db[("Supabase Postgres<br/>satu-satunya sumber kebenaran")]
@@ -2092,7 +2057,7 @@ Deploy         : Railway (produksi) · Fly.io `sin` tersedia sebagai alternatif
 | **Penyedia LLM** (skema OpenAI — Sumopod / OpenRouter) | **Hanya** menerjemahkan tujuan pengurus dan menulis kalimat. **Tidak pernah menghasilkan angka** | `LLM_API_KEY` |
 | **Vercel** | Hosting frontend | — |
 | **Railway** | Hosting backend Go — `startCommand: /app/migrate up && /app/terrion`, healthcheck `/api/health` | seluruh rahasia backend |
-| **Fly.io** | Hosting layanan AI — scale-to-zero, healthcheck `/health` | `AI_SERVICE_TOKEN`, `LLM_API_KEY` |
+| **Railway** | Hosting layanan AI — healthcheck `/health`, satu replika | `AI_SERVICE_TOKEN`, `LLM_API_KEY` |
 
 **Permukaan keamanan, dinyatakan sebagai tabel:**
 
@@ -2102,24 +2067,6 @@ Deploy         : Railway (produksi) · Fly.io `sin` tersedia sebagai alternatif
 | Go API | `DB_*`, `SUPABASE_*`, `REDIS_URL`, `CRON_SECRET`, `AI_SERVICE_TOKEN` | ✅ ya |
 | **Terrion_AI** | `AI_SERVICE_TOKEN`, `LLM_API_KEY` | ❌ **tidak** — server-ke-server saja |
 
----
-
-#### 📐 Spesifikasi Visual Figma — Diagram Tech Stack
-
-> Blok ini adalah spesifikasi untuk aset Figma yang menggantikan diagram Mermaid di atas pada dokumen final.
-
-| Elemen | Ketentuan |
-|---|---|
-| **Kanvas** | 1600 × 1100 px, latar kertas hangat (sama dengan aset Bab 1) |
-| **Tiga zona** | Tiga kotak besar bertumpuk vertikal: *Peramban* (abu terang) → **Zona tepercaya** (hijau, garis penuh, ikon gembok) → **Zona tanpa data pribadi** (kuning pucat, **garis putus-putus**, ikon gembok terbuka + label *"tanpa kredensial"*) |
-| **Kartu layanan** | Tiap zona berisi satu kartu: nama repo (tebal) · bahasa & versi · platform deploy · 2–3 baris peran. Logo teknologi kecil (Next.js, Go, Python) di sudut kanan atas kartu |
-| **Layanan terkelola** | Satu baris di sisi kanan: Supabase Postgres · Supabase Auth · Upstash Redis · Open-Meteo · LLM. Digambar sebagai silinder (basis data) atau kotak bulat (layanan) |
-| **Garis** | **Penuh** = jalur yang tidak boleh mati. **Putus-putus** = jalur yang boleh mati tanpa fitur ikut mati (Go→AI, AI→LLM). Beri satu legenda eksplisit untuk kedua jenis garis |
-| **Anotasi wajib** | Label pada panah Go→AI: *"opsional · ada fallback · anonim"*. Label pada panah FE→Go: *"cookie httpOnly · peramban tidak pernah memegang JWT"* |
-| **Kaki gambar** | Satu baris: *"Garis putus-putus adalah bagian yang boleh mati tanpa fitur ikut mati."* — **jangan dihilangkan**; kalimat ini yang membuat gambar menjadi argumen, bukan sekadar daftar logo |
-| **Aksesibilitas** | Perbedaan zona tidak boleh hanya lewat warna (`R10`): pakai **jenis garis** dan **ikon gembok** sebagai penanda kedua |
-
----
 
 ### 5.2 Alasan Pemilihan Teknologi
 
@@ -2308,7 +2255,7 @@ Sesuai ketentuan lomba — *"library maupun framework yang digunakan wajib didef
 | **Penyegaran sesi maksimal 1× per 30 menit** | Tanpa batas ini, **setiap navigasi** membayar satu perjalanan pulang-pergi ke GoTrue untuk memperbarui token yang baru dicetak beberapa detik lalu |
 | **Circuit breaker layanan AI** | 3 kegagalan berturut-turut → jalur ditutup 60 detik. Tanpa itu, **setiap pengguna membayar batas waktu penuh 3,5 detik** hanya untuk jatuh ke fallback |
 | **Pemanasan koneksi httpx saat startup** | Handshake TLS pertama 1,4 detik. Bila dibayar di dalam permintaan pertama, ia dibayar dari anggaran narasi 2,8 detik — dan **itulah yang terlihat di log produksi**: ketiga narasi gagal berbarengan tepat pada permintaan pertama setelah deploy |
-| **`scale-to-zero` di Fly.io** | Layanan AI mati saat tidak dipakai. Dibolehkan **justru karena** ada fallback — biaya nol pada jam sepi tidak menambah risiko apa pun |
+| **Layanan AI boleh mati** | Ia bukan jalur kritis: setiap galat berakhir di solver `fallback` di dalam Go. Itulah yang membuat *scale-to-zero* (tersedia di Fly.io) menjadi pilihan yang sah, bukan risiko |
 | **Build multi-stage → alpine + biner statis** | `CGO_ENABLED=0` + `-trimpath -ldflags="-s -w"`. Image produksi tidak membawa toolchain Go sama sekali |
 
 ---
@@ -2356,7 +2303,694 @@ Dinyatakan terbuka, sesuai [Catatan Metodologi Angka](#-catatan-metodologi-angka
 
 ### 6.5 Database Schema (ERD)
 
-> 🚧 **Belum disusun.** Akan diturunkan dari 16 pasang migrasi di `db/migrations/`, dikelompokkan menurut enam ranah: *tenancy* · *reference* · *land* · *weather* · *config* · *commerce*, ditambah `season_plan` dan view `public_plot`.
+Basis data Terrion diimplementasikan di atas **PostgreSQL 15 (Supabase)** dengan paradigma **relasional murni yang ditegakkan ketat**. Pilihan ini bukan sekadar kebiasaan teknis, melainkan konsekuensi logis dari karakteristik masalah pertanian terdistribusi:
+
+1. **Konsistensi agregasi panen dan luas lahan.** Luas total blok tanam dalam satu hamparan tidak boleh melebihi luas fisik lahan (`SUM(block.area_ha) <= plot.area_ha`), dan kuota pupuk RDKK diturunkan secara deterministik dari perkalian dosis rekomendasi per hektare terhadap luas hamparan aktif. *Eventual consistency* pada basis data non-relasional (NoSQL) berisiko memicu anomali alokasi ganda dan pembagian pupuk bersubsidi yang cacat hukum.
+2. **Isolasi multi-tenant pada tingkat kernel basis data.** Dengan puluhan koperasi bernaung dalam satu klaster, isolasi data tidak boleh hanya bergantung pada filter kode aplikasi di lapisan backend. Terrion mengaktifkan **Row-Level Security (RLS)** bawaan PostgreSQL di seluruh tabel bisnis, menjamin bahwa bahkan jika terjadi celah logika di aplikasi, lapisan penyimpanan menolak kebocoran data lintas koperasi.
+3. **Komputasi deterministik tanpa overhead GIS.** Kebutuhan pemetaan cuaca mikro dihubungkan melalui kisi (*grid*) iklim beresolusi 0,25° (~27,75 km). Terrion memecahkan kebutuhan ini dengan *Generated Stored Columns* matematis sederhana tanpa membebani server dengan ekstensi PostGIS yang berat.
+
+---
+
+#### 6.5.1 Diagram Relasi Entitas (Entity-Relationship Diagram)
+
+Skema basis data Terrion terdiri dari **19 tabel relasional**, **1 view terproteksi privasi (`public_plot`)**, serta **6 tipe enumerasi kustom (`user_role`, `region_level`, `request_status`, `order_status`, `planning_objective`, `plan_status`)**.
+
+Berikut adalah diagram relasi entitas menyeluruh yang mencakup kedelapan ranah data:
+
+```mermaid
+erDiagram
+    COOPERATIVE ||--o{ APP_USER : "menaungi (kader/pengurus)"
+    COOPERATIVE ||--o{ MEMBER : "mengorganisasi"
+    COOPERATIVE ||--o{ PLOT : "mendaftarkan hamparan"
+    COOPERATIVE ||--o{ COOPERATIVE_CAPACITY : "menetapkan batas"
+    COOPERATIVE ||--o{ CALIBRATION : "mengkalibrasi varietas"
+    COOPERATIVE ||--o{ SEASON_PLAN : "menerbitkan rencana"
+    COOPERATIVE ||--o{ INPUT_ORDER : "mengagregasi pesanan"
+    COOPERATIVE ||--o{ SUPPLY_CONTRACT_REQUEST : "menerima permintaan"
+
+    MEMBER ||--o{ PLOT : "memiliki"
+    MEMBER ||--o{ SEASON_PLAN_ITEM : "dijadwalkan"
+    MEMBER ||--o{ PLAN_SHARE_TOKEN : "menerima tautan"
+
+    PLOT ||--o{ BLOCK : "terbagi atas"
+    PLOT ||--o{ SEASON_PLAN_ITEM : "dialokasikan"
+
+    COMMODITY ||--o{ VARIETY : "memiliki ragam"
+    COMMODITY ||--o{ FERTILISER_RATE : "memiliki standar dosis"
+    COMMODITY ||--o{ REFERENCE_PRICE : "memiliki acuan harga"
+    COMMODITY ||--o{ REGION_STAT : "memiliki statistik"
+    COMMODITY ||--o{ COOPERATIVE_CAPACITY : "dibatasi kapasitas"
+    COMMODITY ||--o{ BLOCK : "ditanam pada"
+    COMMODITY ||--o{ SEASON_PLAN_ITEM : "dijadwalkan pada"
+    COMMODITY ||--o{ SUPPLY_CONTRACT_REQUEST : "dipesan"
+
+    VARIETY ||--o{ BLOCK : "ditanam spesifik"
+    VARIETY ||--o{ CALIBRATION : "dikalibrasi empiris"
+    VARIETY ||--o{ SEASON_PLAN_ITEM : "dipilih untuk tanam"
+
+    SEASON_PLAN ||--o{ SEASON_PLAN_ITEM : "memuat alokasi"
+    SEASON_PLAN ||--o{ PLAN_SHARE_TOKEN : "dibagikan via"
+    SEASON_PLAN ||--o{ BLOCK : "merealisasikan (opsional)"
+
+    INPUT_ORDER ||--o{ INPUT_ORDER_LINE : "memuat rincian item"
+
+    APP_USER ||--o{ SUPPLY_CONTRACT_REQUEST : "mengajukan (buyer)"
+    APP_USER ||--o{ SEASON_PLAN : "disusun oleh (pengurus)"
+    APP_USER ||--o{ INPUT_ORDER : "dibuat / diubah oleh"
+
+    COOPERATIVE {
+        uuid id PK
+        text name
+        text village
+        text district
+        text district_code
+        text province
+        numeric lat
+        numeric lng
+        jsonb stagger_applied
+        text phone
+        timestamptz created_at
+    }
+
+    APP_USER {
+        uuid id PK "FK auth.users"
+        user_role role
+        uuid cooperative_id FK "nullable"
+        text full_name
+        text organisation "nullable"
+        text phone "nullable"
+        timestamptz created_at
+    }
+
+    MEMBER {
+        uuid id PK
+        uuid cooperative_id FK
+        text name
+        text phone "nullable"
+        text nik_hash "nullable"
+        timestamptz created_at
+    }
+
+    COMMODITY {
+        uuid id PK
+        text slug UK
+        text name
+        int sprite_row
+    }
+
+    VARIETY {
+        uuid id PK
+        uuid commodity_id FK
+        text name
+        numeric gdd_requirement
+        numeric base_temp_c
+        int days_to_harvest_min
+        int days_to_harvest_max
+        numeric yield_per_ha_min
+        numeric yield_per_ha_max
+    }
+
+    FERTILISER_RATE {
+        uuid commodity_id PK,FK
+        text input_item PK
+        numeric kg_per_ha
+        text source
+    }
+
+    REFERENCE_PRICE {
+        uuid commodity_id PK,FK
+        text province PK
+        date week_start PK
+        numeric price_per_kg
+        text source
+    }
+
+    REGION_STAT {
+        text region_code PK
+        text region_name
+        region_level level
+        uuid commodity_id PK,FK
+        int year PK
+        numeric production_tonnes
+        numeric harvested_area_ha
+        text source
+    }
+
+    WEATHER_DAILY {
+        numeric grid_lat PK
+        numeric grid_lng PK
+        date date PK
+        numeric temp_min
+        numeric temp_max
+    }
+
+    WEATHER_NORMALS {
+        numeric grid_lat PK
+        numeric grid_lng PK
+        int day_of_year PK
+        numeric mean_c
+        numeric sd_c
+    }
+
+    PLOT {
+        uuid id PK
+        uuid cooperative_id FK
+        uuid member_id FK
+        text public_id UK
+        text name
+        numeric area_ha
+        numeric lat
+        numeric lng
+        numeric grid_lat "GENERATED"
+        numeric grid_lng "GENERATED"
+        int tile_size_m2 "GENERATED"
+        int terrain_seed
+        jsonb terrain_override "nullable"
+        jsonb decorations
+        timestamptz created_at
+    }
+
+    BLOCK {
+        uuid id PK
+        uuid plot_id FK
+        text label
+        numeric area_ha
+        int order_index
+        uuid commodity_id FK
+        uuid variety_id FK
+        date planting_date
+        date actual_harvest_date "nullable"
+        numeric actual_yield_kg "nullable"
+        numeric actual_price_per_kg "nullable"
+        date payment_received_date "nullable"
+        uuid season_plan_id FK "nullable"
+    }
+
+    COOPERATIVE_CAPACITY {
+        uuid cooperative_id PK,FK
+        uuid commodity_id PK,FK
+        numeric tonnes_per_week
+    }
+
+    CALIBRATION {
+        uuid cooperative_id PK,FK
+        uuid variety_id PK,FK
+        numeric offset_days
+        int n_observations
+        numeric residual_sd
+        timestamptz updated_at
+    }
+
+    SEASON_PLAN {
+        uuid id PK
+        uuid cooperative_id FK
+        text season_label
+        date season_start
+        date season_end
+        planning_objective objective
+        plan_status status
+        uuid created_by FK
+        timestamptz created_at
+        timestamptz cancelled_at "nullable"
+    }
+
+    SEASON_PLAN_ITEM {
+        uuid id PK
+        uuid plan_id FK
+        uuid plot_id FK
+        uuid member_id FK
+        uuid commodity_id FK
+        uuid variety_id FK
+        date planting_date
+        numeric area_ha
+        numeric expected_tonnes_low
+        numeric expected_tonnes_mid
+        numeric expected_tonnes_high
+        date expected_harvest_start
+        date expected_harvest_end
+        text plausibility
+        uuid block_id FK "nullable"
+    }
+
+    PLAN_SHARE_TOKEN {
+        uuid id PK
+        uuid plan_id FK
+        uuid member_id FK
+        timestamptz created_at
+        timestamptz first_viewed_at "nullable"
+        timestamptz last_viewed_at "nullable"
+    }
+
+    INPUT_ORDER {
+        uuid id PK
+        uuid cooperative_id FK
+        text season_label
+        order_status status
+        timestamptz created_at
+        uuid created_by_id FK "nullable"
+        text created_by_name "nullable"
+        timestamptz status_changed_at "nullable"
+        uuid status_changed_by_id FK "nullable"
+        text status_changed_by_name "nullable"
+    }
+
+    INPUT_ORDER_LINE {
+        uuid id PK
+        uuid input_order_id FK
+        text item
+        numeric quantity
+        text unit
+        numeric quantity_rdkk "nullable"
+        numeric retail_price_per_unit "nullable"
+        numeric bulk_price_per_unit "nullable"
+    }
+
+    SUPPLY_CONTRACT_REQUEST {
+        uuid id PK
+        uuid cooperative_id FK
+        uuid buyer_id FK
+        text buyer_name
+        text buyer_organisation "nullable"
+        uuid commodity_id FK
+        numeric volume_kg
+        date window_start
+        date window_end
+        request_status status
+        text notes "nullable"
+        timestamptz created_at
+        timestamptz responded_at "nullable"
+    }
+```
+
+---
+
+#### 6.5.2 Partisi Delapan Ranah & Kamus Data Entitas
+
+Struktur tabel di Terrion dikelompokkan secara modular ke dalam **delapan ranah fungsional**. Setiap kolom dirancang dengan tujuan bisnis dan batasan integritas yang presisi:
+
+##### 6.5.2.1 Ranah 1 — Multi-Tenancy & Akses Pengguna
+
+Ranah ini mengatur batas kepemilikan data, autentikasi berbasis identitas, dan perwakilan petani di tingkat desa.
+
+* **`cooperative`** — Entitas penyewa (*tenant*) utama yang merepresentasikan Koperasi Desa/Kelurahan Merah Putih (KDMP) atau Koperasi Pertanian.
+  * `id` (`uuid`, PK): Pengenal unik koperasi (`gen_random_uuid()`).
+  * `name` (`text`, NOT NULL): Nama resmi badan hukum koperasi.
+  * `village` (`text`, NOT NULL): Desa/kelurahan kedudukan koperasi.
+  * `district` (`text`, NOT NULL): Kecamatan kedudukan koperasi.
+  * `district_code` (`text`, NULL): Kode wilayah administrasi resmi (BPS/Kemendagri) untuk agregasi regional.
+  * `province` (`text`, NOT NULL): Provinsi kedudukan (misal `"JAWA BARAT"`).
+  * `lat`, `lng` (`numeric(9,6)`, NOT NULL): Koordinat markas/kantor koperasi.
+  * `stagger_applied` (`jsonb`, NOT NULL, default `'[]'::jsonb`): Audit trail riwayat jadwal penggeseran tanam yang telah diterapkan.
+  * `phone` (`text`, NULL): Kontak WhatsApp/telepon resmi kantor koperasi (migrasi `20260908000015`). Menggunakan nomor lembaga, bukan nomor pribadi pengurus; kepengurusan berganti, saluran kontak koperasi tetap utuh.
+  * `created_at` (`timestamptz`, default `now()`): Waktu pendaftaran koperasi.
+
+* **`app_user`** — Profil pengguna aplikasi yang terhubung 1:1 dengan akun autentikasi Supabase (`auth.users`).
+  * `id` (`uuid`, PK, FK): Mengacu langsung ke `auth.users(id)` dengan relasi `ON DELETE CASCADE`.
+  * `role` (`user_role`, NOT NULL): Peran pengguna (`'kader'`, `'pengurus'`, atau `'buyer'`).
+  * `cooperative_id` (`uuid`, FK, NULL): Mengacu ke `cooperative(id)`. Wajib diisi untuk `kader` dan `pengurus`, wajib `NULL` untuk `buyer`.
+  * `full_name` (`text`, NOT NULL): Nama lengkap pengguna.
+  * `organisation` (`text`, NULL): Nama perusahaan/institusi pembeli (khusus peran `buyer`).
+  * `phone` (`text`, NULL): Nomor telepon/WhatsApp aktif pengguna (migrasi `20260908000014`). Digunakan untuk pembuatan tautan WhatsApp instan antara koperasi dan pembeli.
+  * `created_at` (`timestamptz`, default `now()`): Waktu pembuatan akun.
+  * *Invarian Bisnis*: Konstrain `buyer_has_no_coop` menegakkan aturan bahwa pembeli beroperasi di pasar terbuka lintas koperasi, sedangkan pengurus dan kader terisolasi secara ketat di dalam satu koperasi.
+
+* **`member`** — Petani anggota binaan koperasi. Petani tidak diwajibkan membuat akun aplikasi; data dikelola oleh kader lapangan.
+  * `id` (`uuid`, PK): Pengenal unik anggota.
+  * `cooperative_id` (`uuid`, FK, NOT NULL): Mengacu ke `cooperative(id)` dengan relasi `ON DELETE CASCADE`.
+  * `name` (`text`, NOT NULL): Nama lengkap petani anggota.
+  * `nik_hash` (`text`, NULL): Nilai hash SHA-256 dari NIK petani. Mematuhi UU Pelindungan Data Pribadi (UU PDP No. 27/2022) tanpa menyimpan plaintext NIK, namun tetap memungkinkan pencocokan kuota pupuk e-RDKK secara deterministik.
+  * `phone` (`text`, NULL): Nomor ponsel/WhatsApp petani (migrasi `20260906000012`). Saluran distribusi jadwal tanam tanpa login.
+  * `created_at` (`timestamptz`, default `now()`): Waktu pendaftaran anggota.
+  * *Indeks*: `member_coop_idx` pada `(cooperative_id)`.
+
+##### 6.5.2.2 Ranah 2 — Agronomi & Data Rujukan Nasional
+
+Ranah ini memuat data acuan statis agronomi, standar pemupukan pemerintah, dan statistik makro yang berlaku nasional/regional. Ranah ini bersifat *read-only* bagi seluruh pengguna aplikasi.
+
+* **`commodity`** — Komoditas pertanian rujukan sistem.
+  * `id` (`uuid`, PK): Pengenal unik komoditas.
+  * `slug` (`text`, NOT NULL, UK): Teks kode penentu (`'generik'`, `'padi'`, `'jagung'`, `'wortel'`, `'cabai'`, `'kentang'`, `'beri'`).
+  * `name` (`text`, NOT NULL): Nama tampilan komoditas.
+  * `sprite_row` (`int`, NOT NULL, default `0`): Pemetaan indeks baris pada berkas spritesheet visual kanvas 2D (`crops.png`).
+
+* **`variety`** — Varietas benih spesifik dengan karakteristik fenologis dan agronominya.
+  * `id` (`uuid`, PK): Pengenal unik varietas.
+  * `commodity_id` (`uuid`, FK, NOT NULL): Mengacu ke `commodity(id)` (`ON DELETE CASCADE`).
+  * `name` (`text`, NOT NULL): Nama varietas (misal `"Ciherang"`, `"Inpari 32 HDB"`, `"Bisi-18"`).
+  * `gdd_requirement` (`numeric(8,2)`, NOT NULL): Akumulasi satuan panas *Growing Degree Days* (°C·hari) yang dibutuhkan tanaman dari semai hingga matang panen fisiologis.
+  * `base_temp_c` (`numeric(4,1)`, NOT NULL): Temperatur dasar fisiologis tanaman (°C), di bawah mana laju pertumbuhan bernilai nol (misal padi: 12°C, jagung: 10°C, wortel: 6°C, kentang: 2°C).
+  * `days_to_harvest_min`, `days_to_harvest_max` (`int`, NOT NULL): Rentang estimasi kalender hari panen konvensional dari deskriptor varietas Kementan.
+  * `yield_per_ha_min`, `yield_per_ha_max` (`numeric(8,3)`, NOT NULL): Potensi produktivitas panen minimum dan maksimum (ton/ha).
+  * *Invarian Bisnis*: Konstrain unik komposit `UNIQUE (commodity_id, name)`.
+
+* **`fertiliser_rate`** — Dosis anjuran pemupukan resmi per hektare berdasarkan rekomendasi Badan Standardisasi Instrumen Pertanian (BSIP) / Kementan.
+  * `commodity_id` (`uuid`, PK, FK): Mengacu ke `commodity(id)`.
+  * `input_item` (`text`, PK): Jenis saprodi (`'urea'`, `'npk'`, `'sp36'`, `'za'`, `'organik'`).
+  * `kg_per_ha` (`numeric(8,2)`, NOT NULL): Kebutuhan anjuran baku (kg/ha).
+  * `source` (`text`, NOT NULL): Sitasi sumber hukum/ilmiah acuan rekomendasi pupuk spesifik lokasi.
+
+* **`reference_price`** — Panel harga acuan pasar komoditas per provinsi setiap minggu.
+  * `commodity_id` (`uuid`, PK, FK): Mengacu ke `commodity(id)`.
+  * `province` (`text`, PK): Provinsi rujukan (misal `"JAWA BARAT"`).
+  * `week_start` (`date`, PK): Tanggal hari Senin yang menandai awal minggu pengamatan.
+  * `price_per_kg` (`numeric(12,2)`, NOT NULL): Harga acuan pasar (Rp/kg).
+  * `source` (`text`, NOT NULL): Sumber data harga (PIHPS Bank Indonesia, Bapanas, atau BPS).
+
+* **`region_stat`** — Data statistik historis produksi dan luas panen regional.
+  * `region_code` (`text`, PK): Kode wilayah Kemendagri/BPS.
+  * `region_name` (`text`, NOT NULL): Nama wilayah (provinsi atau kabupaten).
+  * `level` (`region_level`, NOT NULL): Tingkat administrasi (`'province'` atau `'district'`).
+  * `commodity_id` (`uuid`, PK, FK): Mengacu ke `commodity(id)`.
+  * `year` (`int`, PK): Tahun pengamatan sensus/survei.
+  * `production_tonnes` (`numeric(14,2)`, NOT NULL): Total volume produksi gabungan (ton).
+  * `harvested_area_ha` (`numeric(14,2)`, NOT NULL): Total luas panen bersih (hektare).
+  * `source` (`text`, NOT NULL): Sitasi publikasi BPS (*Provinsi Dalam Angka*).
+
+##### 6.5.2.3 Ranah 3 — Lahan & Blok Tanam Fisik
+
+Ranah ini merepresentasikan aset fisik lahan pertanian anggota dan unit alokasi tanam aktif.
+
+* **`plot`** — Hamparan lahan fisik milik petani anggota yang didaftarkan ke dalam koperasi.
+  * `id` (`uuid`, PK): Pengenal unik lahan.
+  * `cooperative_id` (`uuid`, FK, NOT NULL): Mengacu ke `cooperative(id)` (`ON DELETE CASCADE`).
+  * `member_id` (`uuid`, FK, NOT NULL): Pemilik lahan, mengacu ke `member(id)` (`ON DELETE CASCADE`).
+  * `public_id` (`text`, NOT NULL, UK): Slug alfanumerik aman (misal `"plt_k7m9p2"`) untuk akses rute publik `/garden/[public_id]`.
+  * `name` (`text`, NOT NULL): Nama penanda lahan (misal `"Sawah Blok Babakan"`).
+  * `area_ha` (`numeric(8,4)`, NOT NULL): Luas lahan dalam satuan hektare (`CHECK area_ha > 0`).
+  * `lat`, `lng` (`numeric(9,6)`, NOT NULL): Koordinat titik tengah (centroid) lahan.
+  * `grid_lat`, `grid_lng` (`numeric(9,6)`, GENERATED ALWAYS AS STORED):
+    ```sql
+    round(lat / 0.25) * 0.25
+    round(lng / 0.25) * 0.25
+    ```
+    *Analisis Rekayasa*: Menautkan koordinat lahan secara otomatis ke sel grid cuaca 0,25° tanpa memerlukan ekstensi spasial PostGIS yang berat atau kalkulasi trigonometri berulang.
+  * `tile_size_m2` (`int`, GENERATED ALWAYS AS STORED):
+    ```sql
+    case
+      when area_ha * 10000 / 100 <= 400 then 100
+      when area_ha * 10000 / 250 <= 400 then 250
+      when area_ha * 10000 / 500 <= 400 then 500
+      else 1000
+    end
+    ```
+    *Analisis Rekayasa*: Normalisasi skala ubin visual kanvas. Skala resolusi (100 m², 250 m², 500 m², atau 1.000 m²) dipilih otomatis sehingga total ubin kanvas yang dirender per lahan **selalu berada di bawah atau sama dengan 400 ubin**. Hal ini mencegah kehabisan memori GPU pada ponsel kader berdaya rendah dan menjamin rendering 60 FPS.
+  * `terrain_seed` (`int`, NOT NULL): Seed bilangan acak untuk autotiling tekstur permukaan tanah/air/pematang kanvas secara deterministik.
+  * `terrain_override` (`jsonb`, NULL): Peta modifikasi tekstur ubin hasil kustomisasi manual oleh pengguna.
+  * `decorations` (`jsonb`, NOT NULL, default `'[]'::jsonb`): Koordinat penempatan objek dekoratif (pohon kelapa, saung, sumur, jalan).
+  * `created_at` (`timestamptz`, default `now()`): Waktu registrasi lahan.
+  * *Indeks*: `plot_coop_idx` pada `(cooperative_id)`, `plot_grid_idx` pada `(grid_lat, grid_lng)`.
+
+* **`block`** — Blok penanaman aktif di dalam suatu lahan. Satu lahan dapat dibagi menjadi beberapa blok tanam dengan varietas atau tanggal tanam berbeda.
+  * `id` (`uuid`, PK): Pengenal unik blok tanam.
+  * `plot_id` (`uuid`, FK, NOT NULL): Lahan penampung, mengacu ke `plot(id)` (`ON DELETE CASCADE`).
+  * `label` (`text`, NOT NULL): Nama penanda blok (misal `"Petak Utara"`, `"Blok B-1"`).
+  * `area_ha` (`numeric(8,4)`, NOT NULL): Luas petak blok tanam (`CHECK area_ha > 0`).
+  * `order_index` (`int`, NOT NULL, default `0`): Urutan penempatan visual petak pada antarmuka.
+  * `commodity_id` (`uuid`, FK, NOT NULL): Komoditas yang ditanam, mengacu ke `commodity(id)`.
+  * `variety_id` (`uuid`, FK, NOT NULL): Varietas benih yang digunakan, mengacu ke `variety(id)`.
+  * `planting_date` (`date`, NOT NULL): Tanggal mulai penanaman riil/terjadwal.
+  * `actual_harvest_date` (`date`, NULL): Tanggal realisasi panen (diisi setelah panen selesai).
+  * `actual_yield_kg` (`numeric(12,2)`, NULL): Realisasi total bobot hasil panen kotor (kg).
+  * `actual_price_per_kg` (`numeric(12,2)`, NULL): Harga jual riil per kilogram yang diterima petani.
+  * `payment_received_date` (`date`, NULL): Tanggal pencairan dana hasil penjualan kepada petani.
+  * `season_plan_id` (`uuid`, FK, NULL): Tautan balik ke rencana musim yang melahirkan blok ini (migrasi `20260904000010`).
+  * *Indeks*: `block_plot_idx` pada `(plot_id)`, `block_plan_idx` pada `(season_plan_id)`.
+
+##### 6.5.2.4 Ranah 4 — Klimatologi & Grid Cuaca Mikro
+
+Ranah ini menyimpan data historis dan normal klimatologi 30 tahunan dari satelit NASA POWER pada resolusi sel 0,25°.
+
+* **`weather_daily`** — Catatan suhu harian terobservasi per sel grid.
+  * `grid_lat`, `grid_lng` (`numeric(9,6)`, PK): Titik koordinat pusat kisi cuaca.
+  * `date` (`date`, PK): Tanggal pengamatan.
+  * `temp_min`, `temp_max` (`numeric(5,2)`, NOT NULL): Suhu harian minimum dan maksimum (°C).
+
+* **`weather_normals`** — Rata-rata iklim dan variabilitas 30 tahunan per hari dalam setahun (DOY).
+  * `grid_lat`, `grid_lng` (`numeric(9,6)`, PK): Titik koordinat pusat kisi cuaca.
+  * `day_of_year` (`int`, PK): Hari ke-1 hingga ke-366 dalam kalender (`CHECK day_of_year BETWEEN 1 AND 366`).
+  * `mean_c` (`numeric(5,2)`, NOT NULL): Suhu rata-rata historis jangka panjang (°C).
+  * `sd_c` (`numeric(5,2)`, NOT NULL): Standar deviasi suhu (°C), merefleksikan ketidakpastian iklim yang diinjeksikan ke dalam simulasi Monte Carlo jendela panen.
+
+##### 6.5.2.5 Ranah 5 — Konfigurasi & Kalibrasi Empiris Koperasi
+
+Ranah ini memuat batasan kapasitas fisik pasca-panen serta faktor koreksi agronomis lokal koperasi.
+
+* **`cooperative_capacity`** — Batas kapasitas pemrosesan, penjemuran, atau logistik mingguan koperasi per komoditas.
+  * `cooperative_id` (`uuid`, PK, FK): Mengacu ke `cooperative(id)` (`ON DELETE CASCADE`).
+  * `commodity_id` (`uuid`, PK, FK): Mengacu ke `commodity(id)` (`ON DELETE CASCADE`).
+  * `tonnes_per_week` (`numeric(10,2)`, NOT NULL): Ambang batas serap logistik (ton/minggu, `CHECK tonnes_per_week > 0`). Digunakan solver untuk mendeteksi kelebihan kapasitas (*capacity overflow*).
+
+* **`calibration`** — Mesin penyesuaian (*tuning*) agronomis lokal. Variabilitas mikroklimat pedesaan menyebabkan model GDD teoritis mengalami deviasi terhadap kondisi riil.
+  * `cooperative_id` (`uuid`, PK, FK): Mengacu ke `cooperative(id)` (`ON DELETE CASCADE`).
+  * `variety_id` (`uuid`, PK, FK): Mengacu ke `variety(id)` (`ON DELETE CASCADE`).
+  * `offset_days` (`numeric(6,2)`, NOT NULL): Rata-rata selisih hari antara prediksi akumulasi GDD teoritis terhadap realisasi panen di lapangan koperasi tersebut.
+  * `n_observations` (`int`, NOT NULL): Jumlah sampel panen aktual yang mendasari kalibrasi.
+  * `residual_sd` (`numeric(6,2)`, NOT NULL): Deviasi standar sisa galat kalibrasi.
+  * `updated_at` (`timestamptz`, default `now()`): Waktu kalibrasi terakhir diperbarui.
+
+##### 6.5.2.6 Ranah 6 — Perencanaan Produksi Musim & Distribusi Jadwal
+
+Ranah inti yang menopang penyusunan jadwal tanam terkoordinasi untuk mencegah tabrakan puncak panen.
+
+* **`season_plan`** — Rencana jadwal produksi gabungan tingkat koperasi untuk satu musim tanam.
+  * `id` (`uuid`, PK): Pengenal unik rencana musim (`gen_random_uuid()`).
+  * `cooperative_id` (`uuid`, FK, NOT NULL): Mengacu ke `cooperative(id)` (`ON DELETE CASCADE`).
+  * `season_label` (`text`, NOT NULL): Label musim (misal `"MT-1 2026/2027"`).
+  * `season_start`, `season_end` (`date`, NOT NULL): Batang waktu musim (`CHECK season_end >= season_start`).
+  * `objective` (`planning_objective`, NOT NULL): Sasaran optimasi (`'aman'` = minimalkan tabrakan panen, `'pendapatan'` = maksimalkan nilai penjualan saat harga puncak, `'pasar'` = penuhi kuota kontrak offtaker).
+  * `status` (`plan_status`, NOT NULL, default `'applied'`): Status berlakunya rencana (`'applied'` atau `'cancelled'`).
+  * `created_by` (`uuid`, FK, NOT NULL): Pengurus penyusun rencana, mengacu ke `app_user(id)`.
+  * `created_at` (`timestamptz`, default `now()`): Waktu penerapan rencana.
+  * `cancelled_at` (`timestamptz`, NULL): Waktu pembatalan rencana bila digantikan oleh skenario baru.
+  * *Indeks Unik Parsial*: `season_plan_active_idx` pada `(cooperative_id, season_label) WHERE status = 'applied'`. Menjamin hanya ada satu rencana yang berstatus aktif per musim per koperasi.
+
+* **`season_plan_item`** — Rincian alokasi jadwal spesifik per petak lahan yang diterbitkan solver.
+  * `id` (`uuid`, PK): Pengenal unik item alokasi.
+  * `plan_id` (`uuid`, FK, NOT NULL): Mengacu ke `season_plan(id)` (`ON DELETE CASCADE`).
+  * `plot_id` (`uuid`, FK, NOT NULL): Mengacu ke `plot(id)` (`ON DELETE CASCADE`).
+  * `member_id` (`uuid`, FK, NOT NULL): Mengacu ke `member(id)` (`ON DELETE CASCADE`).
+  * `commodity_id` (`uuid`, FK, NOT NULL): Komoditas target, mengacu ke `commodity(id)`.
+  * `variety_id` (`uuid`, FK, NOT NULL): Varietas target, mengacu ke `variety(id)`.
+  * `planting_date` (`date`, NOT NULL): Rekomendasi tanggal tanam tergeser (*staggered planting date*).
+  * `area_ha` (`numeric(8,4)`, NOT NULL): Luas lahan yang dialokasikan (`CHECK area_ha > 0`).
+  * `expected_tonnes_low`, `expected_tonnes_mid`, `expected_tonnes_high` (`numeric(12,3)`, NOT NULL): Proyeksi hasil panen tiga angka (*three-point estimation*) pada interval kepercayaan 90%.
+  * `expected_harvest_start`, `expected_harvest_end` (`date`, NOT NULL): Jendela estimasi tanggal panen fisiologis hasil akumulasi GDD.
+  * `plausibility` (`text`, NOT NULL): Catatan kelayakan agronomi dari solver (`"tinggi"`, `"sedang"`, `"rendah"`).
+  * `block_id` (`uuid`, FK, NULL): Tautan ke blok riil saat rencana diterapkan ke siklus operasional lapangan (`ON DELETE SET NULL`).
+  * *Indeks*: `season_plan_item_plan_idx` pada `(plan_id)`.
+
+* **`plan_share_token`** — Token pembagian tautan rencana individual kepada petani anggota via WhatsApp (migrasi `20260906000011`).
+  * `id` (`uuid`, PK): Pengenal unik token akses.
+  * `plan_id` (`uuid`, FK, NOT NULL): Mengacu ke `season_plan(id)` (`ON DELETE CASCADE`).
+  * `member_id` (`uuid`, FK, NOT NULL): Mengacu ke `member(id)` (`ON DELETE CASCADE`).
+  * `created_at` (`timestamptz`, default `now()`): Waktu pembuatan token.
+  * `first_viewed_at` (`timestamptz`, NULL): Jejak audit kapan petani pertama kali membuka jadwal di ponselnya.
+  * `last_viewed_at` (`timestamptz`, NULL): Jejak audit peninjauan terakhir.
+  * *Invarian Bisnis*: `UNIQUE (plan_id, member_id)`. Setiap petani hanya menerima satu tautan akses per musim.
+
+##### 6.5.2.7 Ranah 7 — Pengadaan Pupuk Kolektif & Pasar Berjangka
+
+Ranah ini menopang pengadaan saprodi bersubsidi/kolektif koperasi dan transaksi kontrak pasok dengan pembeli institusi.
+
+* **`input_order`** — Pesanan pengadaan saprodi (pupuk/benih) agregat tingkat koperasi untuk satu musim.
+  * `id` (`uuid`, PK): Pengenal unik pesanan.
+  * `cooperative_id` (`uuid`, FK, NOT NULL): Mengacu ke `cooperative(id)` (`ON DELETE CASCADE`).
+  * `season_label` (`text`, NOT NULL): Musim sasaran pengadaan.
+  * `status` (`order_status`, NOT NULL, default `'draft'`): Status pesanan (`'draft'`, `'submitted'`, `'completed'`, `'cancelled'`).
+  * `created_at` (`timestamptz`, default `now()`): Waktu draf dibuat.
+  * `created_by_id` (`uuid`, FK, NULL): Pengurus pembuat, mengacu ke `app_user(id)` (`ON DELETE SET NULL`).
+  * `created_by_name` (`text`, NULL): Nama pengurus pembuat saat pesanan diterbitkan.
+  * `status_changed_at` (`timestamptz`, NULL): Waktu transisi status terakhir.
+  * `status_changed_by_id` (`uuid`, FK, NULL): Pengguna yang mengeksekusi perubahan status (`ON DELETE SET NULL`).
+  * `status_changed_by_name` (`text`, NULL): Nama pengubah status.
+  * *Indeks Unik Parsial*: `input_order_one_open_per_season` pada `(cooperative_id, season_label) WHERE status IN ('draft', 'submitted')` (migrasi `20260906000013`). Mencegah anomali operasional berupa penumpukan draf ganda untuk musim yang sama.
+
+* **`input_order_line`** — Rincian baris komoditas saprodi dalam pesanan kolektif.
+  * `id` (`uuid`, PK): Pengenal unik baris pesanan.
+  * `input_order_id` (`uuid`, FK, NOT NULL): Mengacu ke `input_order(id)` (`ON DELETE CASCADE`).
+  * `item` (`text`, NOT NULL): Nama sarana produksi (`'urea'`, `'npk'`, `'sp-36'`, `'organik'`).
+  * `quantity` (`numeric(12,2)`, NOT NULL): Total volume yang dipesan.
+  * `unit` (`text`, NOT NULL): Satuan pesanan (misal `"karung 50kg"` atau `"kg"`).
+  * `quantity_rdkk` (`numeric(12,2)`, NULL): Angka kuota baku hasil perhitungan e-RDKK resmi untuk verifikasi subsidi.
+  * `retail_price_per_unit` (`numeric(12,2)`, NULL): Harga eceran pasar non-subsidi per unit.
+  * `bulk_price_per_unit` (`numeric(12,2)`, NULL): Harga tebus kolektif hasil negosiasi volume dengan distributor/produsen pupuk.
+
+* **`supply_contract_request`** — Pengajuan kontrak pasok berjangka dari pembeli offtaker ke koperasi.
+  * `id` (`uuid`, PK): Pengenal unik permohonan kontrak.
+  * `cooperative_id` (`uuid`, FK, NOT NULL): Koperasi tujuan, mengacu ke `cooperative(id)` (`ON DELETE CASCADE`).
+  * `buyer_id` (`uuid`, FK, NOT NULL): Akun pembeli pemohon, mengacu ke `app_user(id)` (`ON DELETE CASCADE`).
+  * `buyer_name` (`text`, NOT NULL): Nama perwakilan pembeli.
+  * `buyer_organisation` (`text`, NULL): Nama badan usaha pembeli (misal `"PT Food Station Tjipinang"`).
+  * `commodity_id` (`uuid`, FK, NOT NULL): Komoditas yang diminati, mengacu ke `commodity(id)`.
+  * `volume_kg` (`numeric(14,2)`, NOT NULL): Target volume pasokan yang diminta (`CHECK volume_kg > 0`).
+  * `window_start`, `window_end` (`date`, NOT NULL): Jendela waktu penerimaan pasokan (`CHECK window_end >= window_start`).
+  * `status` (`request_status`, NOT NULL, default `'pending'`): Status permohonan (`'pending'`, `'accepted'`, `'declined'`, `'withdrawn'`).
+  * `notes` (`text`, NULL): Catatan spesifikasi mutu komoditas dari pembeli.
+  * `created_at` (`timestamptz`, default `now()`): Waktu pengajuan kontrak.
+  * `responded_at` (`timestamptz`, NULL): Waktu respon pengurus koperasi.
+
+##### 6.5.2.8 Ranah 8 — Proyeksi Publik & Isolasi Batas Privasi (View `public_plot`)
+
+Untuk menyajikan fitur visualisasi lahan publik (`/garden/[public_id]`) tanpa mewajibkan pengunjung memiliki akun, sistem mendefinisikan *Database View* khusus:
+
+```sql
+create view public_plot as
+  select p.public_id, p.name, p.area_ha, p.tile_size_m2,
+         m.name as member_name, c.village, c.district, p.terrain_seed
+  from plot p
+  join member m on m.id = p.member_id
+  join cooperative c on c.id = p.cooperative_id;
+
+grant select on public_plot to anon, authenticated;
+```
+
+*Prinsip Isolasi Privasi (Zero Leak)*:
+1. **Pencegahan Eksfiltrasi Titik Koordinat Presisi.** Kolom `lat` dan `lng` fisik lahan disaring keluar dari view. Pengunjung publik hanya mengetahui batas desa (`village`) dan kecamatan (`district`), mencegah penyalahgunaan data lokasi lahan petani oleh pihak yang tidak bertanggung jawab.
+2. **Penyembunyian Kunci Primer UUID.** View hanya mengekspos `public_id`, menjaga kunci UUID internal database tetap terisolasi di balik batas aplikasi.
+3. **Penyembunyian Data Finansial & Sensitif.** Riwayat hasil panen riil (`actual_yield_kg`), harga jual transaksi (`actual_price_per_kg`), tanggal pencairan dana, serta hash NIK sama sekali tidak disertakan dalam proyeksi view.
+
+---
+
+#### 6.5.3 Arsitektur Keamanan: Row-Level Security (RLS) & Isolasi Multi-Tenant
+
+Terrion menerapkan strategi pertahanan berlapis (*Defense in Depth*) untuk menjamin isolasi multi-tenant. Inti penegakan keamanan berada langsung di level mesin PostgreSQL menggunakan **Row-Level Security (RLS)** yang diatur dalam migrasi `20260831000008_rls.up.sql`.
+
+##### 6.5.3.1 Fungsi Keamanan Sentral (*Security Definer Functions*)
+
+Dua fungsi pembantu SQL berstatus `SECURITY DEFINER` mengekstrak konteks identitas pengguna yang sedang terotentikasi langsung dari tabel `app_user` berdasarkan klaim JWT Supabase (`auth.uid()`):
+
+```sql
+create or replace function current_cooperative_id() returns uuid
+language sql stable security definer set search_path = public as $$
+  select cooperative_id from app_user where id = auth.uid()
+$$;
+
+create or replace function current_user_role() returns user_role
+language sql stable security definer set search_path = public as $$
+  select role from app_user where id = auth.uid()
+$$;
+```
+
+*Keunggulan Arsitektural*:
+* Parameter `set search_path = public` mencegah serangan *search-path hijacking*.
+* Status `stable` memungkinkan perencana kueri PostgreSQL meng-cache hasil evaluasi fungsi selama transaksi berjalan, menghindari beban kueri sub-select berulang pada operasi multi-baris.
+
+##### 6.5.3.2 Matriks Penegakan Kebijakan RLS
+
+Setiap tabel di basis data memiliki kebijakan RLS spesifik yang membedakan hak baca (*read*) dan hak tulis (*write*) sesuai peran pengguna:
+
+| Tabel | Operasi | Kondisi Akses Kebijakan (*Policy Predicate*) | Sasaran Peran |
+|---|:---:|---|---|
+| `commodity`, `variety`, `fertiliser_rate`, `reference_price`, `region_stat`, `weather_*` | SELECT | `USING (true)` | Semua pengguna (publik & terautentikasi) |
+| `cooperative` | SELECT | `USING (true)` | Semua pengguna (katalog publik & profil) |
+| `cooperative` | UPDATE | `USING (id = current_cooperative_id() AND current_user_role() = 'pengurus')` | Pengurus koperasi pemilik |
+| `app_user` | SELECT | `USING (id = auth.uid())` | Pemilik akun sendiri |
+| `member`, `plot` | SELECT | `USING (cooperative_id = current_cooperative_id())` | Kader & Pengurus koperasi |
+| `member`, `plot` | INSERT / UPDATE / DELETE | `USING / WITH CHECK (cooperative_id = current_cooperative_id() AND current_user_role() IN ('kader', 'pengurus'))` | Kader & Pengurus koperasi |
+| `block` | SELECT | `USING (EXISTS (SELECT 1 FROM plot p WHERE p.id = block.plot_id AND p.cooperative_id = current_cooperative_id()))` | Kader & Pengurus koperasi |
+| `block` | INSERT / UPDATE / DELETE | `USING / WITH CHECK (current_user_role() IN ('kader', 'pengurus') AND EXISTS (SELECT 1 FROM plot p WHERE p.id = block.plot_id AND p.cooperative_id = current_cooperative_id()))` | Kader & Pengurus koperasi |
+| `cooperative_capacity` | SELECT | `USING (cooperative_id = current_cooperative_id())` | Kader & Pengurus koperasi |
+| `cooperative_capacity` | ALL | `USING / WITH CHECK (cooperative_id = current_cooperative_id() AND current_user_role() = 'pengurus')` | Pengurus koperasi |
+| `calibration` | SELECT | `USING (cooperative_id = current_cooperative_id())` | Anggota koperasi |
+| `season_plan` | SELECT | `USING (cooperative_id = current_cooperative_id())` | Kader & Pengurus koperasi |
+| `season_plan` | ALL | `USING / WITH CHECK (cooperative_id = current_cooperative_id() AND current_user_role() = 'pengurus')` | Pengurus koperasi |
+| `season_plan_item` | SELECT | `USING (EXISTS (SELECT 1 FROM season_plan p WHERE p.id = season_plan_item.plan_id AND p.cooperative_id = current_cooperative_id()))` | Kader & Pengurus koperasi |
+| `season_plan_item` | ALL | `USING / WITH CHECK (current_user_role() = 'pengurus' AND EXISTS (SELECT 1 FROM season_plan p WHERE p.id = season_plan_item.plan_id AND p.cooperative_id = current_cooperative_id()))` | Pengurus koperasi |
+| `plan_share_token` | SELECT | `USING (EXISTS (SELECT 1 FROM season_plan p WHERE p.id = plan_share_token.plan_id AND p.cooperative_id = current_cooperative_id()))` | Pengurus koperasi |
+| `plan_share_token` | ALL | `USING / WITH CHECK (current_user_role() = 'pengurus' AND EXISTS (SELECT 1 FROM season_plan p WHERE p.id = plan_share_token.plan_id AND p.cooperative_id = current_cooperative_id()))` | Pengurus koperasi |
+| `input_order` | SELECT | `USING (cooperative_id = current_cooperative_id())` | Pengurus koperasi |
+| `input_order` | ALL | `USING / WITH CHECK (cooperative_id = current_cooperative_id() AND current_user_role() = 'pengurus')` | Pengurus koperasi |
+| `input_order_line` | SELECT | `USING (EXISTS (SELECT 1 FROM input_order o WHERE o.id = input_order_line.input_order_id AND o.cooperative_id = current_cooperative_id()))` | Pengurus koperasi |
+| `input_order_line` | ALL | `USING / WITH CHECK (current_user_role() = 'pengurus' AND EXISTS (SELECT 1 FROM input_order o WHERE o.id = input_order_line.input_order_id AND o.cooperative_id = current_cooperative_id()))` | Pengurus koperasi |
+| `supply_contract_request` | SELECT | `USING (cooperative_id = current_cooperative_id() OR buyer_id = auth.uid())` | Koperasi penerima ATAU Pembeli pengaju |
+| `supply_contract_request` | INSERT | `WITH CHECK (buyer_id = auth.uid())` | Pembeli terautentikasi |
+| `supply_contract_request` | UPDATE | `USING (cooperative_id = current_cooperative_id() AND current_user_role() = 'pengurus')` | Pengurus koperasi penerima |
+
+##### 6.5.3.3 Empat Lapis Penegakan Tenancy (*Tenancy Quadruple-Lock*)
+
+Isolasi data di Terrion ditegakkan secara serentak di empat lapisan arsitektur:
+
+1. **Lapis 1 — PostgreSQL Kernel (RLS):** Kebijakan pada tabel menolak akses kueri tanpa filter tenant yang valid, bahkan terhadap kueri SQL langsung (*raw query*).
+2. **Lapis 2 — Backend Repository (`WHERE cooperative_id = ?`):** Setiap kueri GORM di lapisan repositori Go secara eksplisit menyertakan klausul `cooperative_id`. Ini mencegah ketergantungan pasif pada RLS semata.
+3. **Lapis 3 — Middleware & Auth Context:** Dekoder JWT di handler HTTP memvalidasi klaim sesi dan menginjeksi entitas `AuthContext` yang tidak dapat diubah (*immutable*) ke dalam alur eksekusi kueri.
+4. **Lapis 4 — Route Groups & Layout Boundaries Frontend:** Rute `(app)` (portal koperasi) dan `(public)` (pembeli & katalog) dipisahkan pada App Router Next.js, memastikan tidak ada komponen UI pengurus yang disajikan ke pihak pembeli.
+
+---
+
+#### 6.5.4 Invarian Integritas, Pengecekan Bisnis, & Kinerja Indeks
+
+Integritas bisnis Terrion tidak bergantung pada disiplin kode aplikasi semata; seluruh aturan pokok ditegakkan secara deklaratif pada skema basis data:
+
+##### 6.5.4.1 Batasan Integritas (*Check Constraints*)
+
+| Tabel | Nama Konstrain | Ekspresi SQL | Rasional Agronomi & Bisnis |
+|---|---|---|---|
+| `app_user` | `buyer_has_no_coop` | `(role = 'buyer' AND cooperative_id IS NULL) OR (role <> 'buyer' AND cooperative_id IS NOT NULL)` | Pembeli adalah entitas pasar bebas; kader dan pengurus wajib terasosiasi ke tepat satu koperasi. |
+| `plot` | - | `CHECK (area_ha > 0)` | Luas lahan fisik tidak boleh bernilai nol atau negatif. |
+| `block` | - | `CHECK (area_ha > 0)` | Luas blok tanam wajib bernilai positif. |
+| `weather_normals` | - | `CHECK (day_of_year BETWEEN 1 AND 366)` | Menjamin kalender normalisasi iklim berada dalam rentang hari tahun Masehi/kabisat. |
+| `cooperative_capacity` | - | `CHECK (tonnes_per_week > 0)` | Kapasitas logistik mingguan wajib bernilai positif. |
+| `season_plan` | `season_ordered` | `CHECK (season_end >= season_start)` | Tanggal akhir musim tanam tidak boleh mendahului tanggal awal. |
+| `season_plan_item` | - | `CHECK (area_ha > 0)` | Alokasi luas tanam wajib bernilai positif. |
+| `supply_contract_request` | - | `CHECK (volume_kg > 0)` | Permintaan pasokan pembeli wajib memiliki kuantum positif. |
+| `supply_contract_request` | `window_ordered` | `CHECK (window_end >= window_start)` | Jendela waktu pengiriman pasokan wajib valid secara kronologis. |
+
+##### 6.5.4.2 Penegakan Status Mesin (*State Machine*) melalui Partial Unique Index
+
+Terrion menghindari penguncian tabel (*table locking*) yang memicu *bottleneck* performa dengan memanfaatkan **Partial Unique Index** bawaan PostgreSQL untuk mengatur transisi status bisnis:
+
+1. **Satu Rencana Tanam Aktif per Musim (`season_plan_active_idx`):**
+   ```sql
+   create unique index season_plan_active_idx
+     on season_plan (cooperative_id, season_label)
+     where status = 'applied';
+   ```
+   *Manfaat*: Menjamin secara atomik bahwa dalam satu koperasi tidak pernah ada dua rencana tanam berstatus `applied` untuk musim yang sama. Pengurus dapat membatalkan rencana (`status = 'cancelled'`) dan menerapkan rencana pengganti tanpa perlu menghapus rekaman riwayat audit rencana sebelumnya.
+
+2. **Satu Pesanan Pupuk Terbuka per Musim (`input_order_one_open_per_season`):**
+   ```sql
+   create unique index input_order_one_open_per_season
+     on input_order (cooperative_id, season_label)
+     where status in ('draft', 'submitted');
+   ```
+   *Manfaat*: Menyelesaikan masalah operasional penumpukan pesanan draf ganda. Koperasi hanya diizinkan memiliki satu pesanan terbuka (`draft` atau `submitted`) per musim. Setelah pesanan selesai (`completed`) atau dibatalkan (`cancelled`), pesanan baru baru dapat dibuat.
+
+##### 6.5.4.3 Strategi Pengindeksan & Performa Kueri
+
+Indeks B-Tree sekunder diletakkan secara selektif pada kolom-kolom yang menjadi predikat filter utama pada *dashboard* dan agregasi:
+
+* `member(cooperative_id)` — Menjamin pencarian daftar petani per koperasi beroperasi dalam waktu O(log N).
+* `plot(cooperative_id)` — Mempercepat penarikan inventaris lahan koperasi pada kanvas atlas.
+* `plot(grid_lat, grid_lng)` — Mempercepat pencocokan geospasial seluruh lahan yang bernaung di bawah satu sel cuaca mikro NASA POWER.
+* `block(plot_id)` & `block(season_plan_id)` — Menghubungkan petak tanam ke induk lahan dan rencana musim tanpa *full-table scan*.
+* `season_plan_item(plan_id)` — Mengoptimalkan pemuatan ribuan baris alokasi jadwal tanam saat simulasi rencana dibuka.
+* `plan_share_token(plan_id)` — Mempercepat pemantauan status buka tautan (*read receipt*) pada dasbor pengurus.
+
+---
+
+#### 6.5.5 Kronologi & Analisis 16 Pasang Migrasi SQL
+
+Evolusi skema basis data Terrion tercatat secara transparan dalam **16 pasang berkas migrasi SQL** (`.up.sql` dan `.down.sql`) di direktori `Terrion_Backend/db/migrations/`. Setiap migrasi mencerminkan iterasi kebutuhan lapangan yang diselesaikan dengan prinsip *backward-compatibility*:
+
+| No | Berkas Migrasi | Ranah | Esensi Perubahan DDL | Rasional Lapangan & Keputusan Desain |
+|:--:|---|:---:|---|---|
+| **01** | `20260831000001_tenancy` | *Tenancy* | Membuat tabel `cooperative`, `app_user`, `member`, enum `user_role`, dan konstrain `buyer_has_no_coop`. | Meletakkan pondasi isolasi multi-tenant sejak hari pertama. |
+| **02** | `20260831000002_reference` | *Reference* | Membuat tabel `commodity`, `variety`, `fertiliser_rate`, `reference_price`, `region_stat`. | Standarisasi acuan agronomi dan parameter GDD tanaman. |
+| **03** | `20260831000003_land` | *Land* | Membuat tabel `plot`, `block`, generated column `grid_lat`/`grid_lng`, dan `tile_size_m2`. | Integrasi lahan fisik dengan kisi cuaca satelit dan normalisasi ubin kanvas 2D. |
+| **04** | `20260831000004_weather` | *Weather* | Membuat tabel `weather_daily` dan `weather_normals`. | Penyimpanan data iklim historis dan normal 30 tahunan dari NASA POWER. |
+| **05** | `20260831000005_config` | *Config* | Membuat tabel `cooperative_capacity` dan `calibration`. | Batasan kapasitas pasca-panen koperasi dan mesin kalibrasi empiris lokal. |
+| **06** | `20260831000006_commerce` | *Commerce* | Membuat tabel `supply_contract_request`, `input_order`, `input_order_line`, enums `request_status` dan `order_status`. | Kerangka awal kontrak pasokan offtaker dan agregasi pengadaan saprodi. |
+| **07** | `20260831000007_public_plot_view` | *Public* | Membuat database view `public_plot` dengan grant ke peran `anon` dan `authenticated`. | Menyediakan akses publik halaman lahan (`/garden/[public_id]`) tanpa membocorkan koordinat GPS presisi dan UUID internal. |
+| **08** | `20260831000008_rls` | *Security* | Mendefinisikan fungsi `current_cooperative_id()`, `current_user_role()`, mengaktifkan RLS di seluruh tabel dan menyusun seluruh kebijakan akses. | Menutup seluruh potensi kebocoran data multi-tenant pada kernel basis data. |
+| **09** | `20260831000009_seed_reference` | *Reference* | Memasukkan data awal komoditas (padi, jagung, wortel, cabai, kentang, beri), varietas rujukan, dosis pupuk Kementan, harga acuan pasar, dan cuaca normal Subang. | Data awal operasional untuk pengujian realistis tanpa sistem kosong. |
+| **10** | `20260904000010_season_plan` | *Planning* | Membuat tabel `season_plan`, `season_plan_item`, enums `planning_objective` dan `plan_status`, menambah relasi `block.season_plan_id`. | Menopang fitur utama Rencana Tanam Musim dan penjadwalan optimasi tanam. |
+| **11** | `20260906000011_plan_share_token` | *Planning* | Membuat tabel `plan_share_token` dengan jejak audit `first_viewed_at` dan `last_viewed_at`. | Memungkinkan pembagian rencana tanam ke petani via WhatsApp tanpa akun aplikasi. |
+| **12** | `20260906000012_member_phone` | *Tenancy* | Menambahkan kolom `phone` nullable pada tabel `member`. | Menyimpan nomor WhatsApp petani untuk pengiriman token rencana individual. |
+| **13A** | `20260906000013_input_order_lifecycle` | *Commerce* | Menambahkan status `'cancelled'` pada enum `order_status`, kolom audit jejak (`created_by_*`, `status_changed_*`), kolom `quantity_rdkk`, dan partial index `input_order_one_open_per_season`. | Menuntaskan siklus hidup pengadaan saprodi: draf, pengajuan, penyelesaian, pembatalan, dan pencegahan duplikasi draf. |
+| **13B** | `20260907000013_wider_reference` | *Reference* | Menambahkan varietas baru (Inpari 32, Mekongga, NK Perkasa, dll.) dan panel harga mingguan untuk seluruh provinsi sasaran koperasi. | Memperluas cakupan geografis simulasi agronomi ke sentra pertanian lain di Indonesia. |
+| **14** | `20260908000014_app_user_phone` | *Commerce* | Menambahkan kolom `phone` nullable pada tabel `app_user`. | Menyediakan kontak WhatsApp pembeli sehingga pengurus koperasi dapat langsung berkoordinasi saat menerima tawaran kontrak. |
+| **15** | `20260908000015_cooperative_phone` | *Commerce* | Menambahkan kolom `phone` nullable pada tabel `cooperative`. | Menyediakan kontak WhatsApp resmi koperasi agar pembeli dapat menanyakan jadwal logistik armada truk. |
+
 
 ---
 
