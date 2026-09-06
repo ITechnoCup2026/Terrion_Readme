@@ -75,6 +75,17 @@
 - [⚙️ 7. Instalasi & Setup](#️-7-instalasi--setup)
 - [🚀 8. Penggunaan](#-8-penggunaan)
 - [📚 9. API Documentation](#-9-api-documentation)
+  - [9.1 Aturan Umum](#91-aturan-umum)
+  - [9.2 Ringkasan Seluruh Endpoint](#92-ringkasan-seluruh-endpoint)
+  - [9.3 Endpoint Publik](#93-endpoint-publik)
+  - [9.4 Lahan, Panen, dan Dasbor](#94-endpoint-terautentikasi--lahan-panen-dan-dasbor)
+  - [9.5 RDKK, Pasar, Penggeseran, Rencana](#95-endpoint-terautentikasi--rdkk-pasar-penggeseran-rencana)
+  - [9.6 Endpoint Cron](#96-endpoint-cron)
+  - [9.7 Kontrak Internal Dua Layanan](#97-kontrak-internal-dua-layanan--v10)
+  - [9.8 Tipe Bersama](#98-tipe-bersama)
+  - [9.9 Katalog Kode Kesalahan](#99-katalog-kode-kesalahan)
+  - [9.10 Contoh Pemakaian](#910-contoh-pemakaian)
+  - [9.11 CORS dan Batasan](#911-cors-dan-batasan)
 - [🧪 10. Testing](#-10-testing)
 - [🧭 Peta Dokumen ke Rubrik Penilaian](#-peta-dokumen-ke-rubrik-penilaian)
 - [📖 Referensi](#-referensi)
@@ -2725,7 +2736,1440 @@ Terrion_AI/
 
 ## 📚 9. API Documentation
 
-> 🚧 **Belum diisi.**
+Terrion memaparkan **dua** API yang sifatnya berbeda, dan membedakannya adalah hal pertama yang perlu dibaca:
+
+| API | Pemanggil | Autentikasi | Dokumen |
+|---|---|---|---|
+| **API Publik & Aplikasi** — 38 rute di `Terrion_Backend` | Peramban, lewat `Terrion_Frontend` | Cookie sesi `HttpOnly` | [§9.2](#92-ringkasan-seluruh-endpoint) – [§9.6](#96-endpoint-cron) |
+| **Kontrak Internal Dua Layanan** — 3 rute di `Terrion_AI` | **Hanya** `Terrion_Backend`, server-ke-server | `Authorization: Bearer` | [§9.7](#97-kontrak-internal-dua-layanan--v10) |
+
+> Layanan AI **tidak bisa dijangkau dari peramban**. Ia tidak punya konsep pengguna, tidak punya kredensial basis data, dan tidak pernah menulis apa pun — lihat [analisis radius ledakan §5.2.3](#523-kenapa-tiga-layanan-bukan-satu--dan-di-mana-garis-potongnya).
+
+---
+
+### 9.1 Aturan Umum
+
+#### 9.1.1 Base URL
+
+```
+Pengembangan : http://localhost:8080/api
+Produksi     : https://<domain-backend>/api
+```
+
+Frontend membacanya dari `NEXT_PUBLIC_API_URL`, dan **seluruh percakapan HTTP melewati satu berkas**: `lib/api/client.ts`.
+
+#### 9.1.2 Amplop respons
+
+Setiap respons sukses dibungkus:
+
+```json
+{ "data": ... }
+```
+
+Setiap kegagalan mengembalikan:
+
+```json
+{ "errors": "<kode mesin>" }
+```
+
+> **`errors` berisi kode mesin, bukan kalimat untuk pengguna.** Teks Bahasa Indonesia adalah urusan frontend — itulah alasan `lib/auth/signup-errors.ts` dan `lib/schemas/block.ts` tinggal di sisi sana. Peladen yang mengirim kalimat berarti kalimat itu tidak bisa diubah tanpa men-*deploy* peladen.
+
+**Dua endpoint mengembalikan keduanya sekaligus** — `errors` berisi kodenya, `data` berisi angka yang dibutuhkan frontend untuk menyusun kalimatnya sendiri:
+
+| Endpoint | Kode | `data` yang menyertainya |
+|---|---|---|
+| `POST /api/blocks/:id/split` | `split_below_minimum` · `split_leaves_too_little` | `{ min_ha, block_area_ha, max_takeable_ha }` |
+| `POST /api/stagger` | `stagger_nothing_to_shift` | `{ already_planted, would_be_in_the_past }` |
+
+Contoh nyata — penolakan yang bisa langsung menjadi kalimat di layar:
+
+```json
+{
+  "errors": "split_leaves_too_little",
+  "data": { "min_ha": 0.01, "block_area_ha": 0.75, "max_takeable_ha": 0.74 }
+}
+```
+
+> **Belum ada endpoint yang berpaginasi.** `PageResponse` dan `PageMetadata` ada di `internal/model/model.go` tetapi belum dipakai — dinyatakan supaya tidak dikira lupa.
+
+#### 9.1.3 Autentikasi — peramban tidak pernah memegang JWT
+
+Supabase Auth (GoTrue) tetap penerbit identitas, **tetapi klien tidak pernah memegang token JWT-nya.**
+
+```
+   Peramban                  Terrion_Backend                 Supabase Auth
+      │                            │                              │
+      │  POST /api/auth/login      │                              │
+      │  { email, password }       │                              │
+      ├───────────────────────────►│                              │
+      │                            │  tukar kredensial            │
+      │                            ├─────────────────────────────►│
+      │                            │  access + refresh token      │
+      │                            │◄─────────────────────────────┤
+      │                            │                              │
+      │                     simpan pasangan token di Redis
+      │                     di bawah id sesi acak 32 byte
+      │                            │
+      │  Set-Cookie:               │
+      │  terrion_session=<id>      │
+      │  HttpOnly; Max-Age=2592000 │
+      │◄───────────────────────────┤
+```
+
+```
+Set-Cookie: terrion_session=<id sesi>; Path=/; HttpOnly; Max-Age=2592000
+```
+
+| Properti | Produksi (lintas domain) | Lokal |
+|---|---|---|
+| `HttpOnly` | ✅ | ✅ |
+| `Secure` | ✅ | ❌ |
+| `SameSite` | `None` | `Lax` |
+| Masa hidup | **30 hari** di Redis | sama |
+
+- Endpoint terautentikasi membaca cookie `terrion_session`. **Tidak ada header `Authorization: Bearer` untuk pengguna manusia** — header itu dipakai, dengan rahasia yang sama sekali berbeda, hanya oleh [endpoint cron](#96-endpoint-cron) dan [kontrak dua layanan](#97-kontrak-internal-dua-layanan--v10).
+- Penyegaran lewat `POST /api/auth/refresh` menukar refresh token GoTrue yang tersimpan **tanpa meminta kata sandi lagi**, dan menulis ulang pasangan token di kunci sesi yang sama — **id sesi dan cookie-nya tidak berubah**. Frontend memanggilnya maksimal **sekali per 30 menit** (`proxy.ts`).
+
+> **Tiga kegagalan, satu jawaban.** Cookie hilang · id tidak dikenal Redis · baris `app_user` untuk pemilik sesi tidak ada → jawabannya **sama persis: `401`**. Keberadaan akun maupun sesi tidak boleh bisa diprobe.
+
+#### 9.1.4 Peran dan matriks otorisasi
+
+| Peran | Punya koperasi | Bisa apa |
+|---|:--:|---|
+| `kader` | ✅ | Mendaftarkan lahan, memecah dan menyunting blok, mencatat panen |
+| `pengurus` | ✅ | Semua yang bisa kader, **plus** menghapus lahan, menyetel kapasitas, pesanan sarana produksi, menjawab pembeli, menerapkan penggeseran, menyusun dan membatalkan rencana |
+| `buyer` | ❌ | Menelusuri katalog, mengirim permintaan pasokan |
+
+**Penegakan berlapis empat** untuk satu aksi tulis:
+
+```
+penjaga halaman (Next.js)  →  requireRole() di Server Action
+      →  middleware.RequireRole (Fiber)  →  cek tenant di usecase
+```
+
+Lapis keempat yang menentukan: **setiap kueri repositori dibatasi `cooperative_id` pemanggil.** Controller yang lupa memfilter tetap tidak bisa membocorkan apa pun, karena kuerinya memang tidak punya jalur ke sana.
+
+#### 9.1.5 Kode status
+
+| Kode | Kapan |
+|:--:|---|
+| `200` | Berhasil |
+| `201` | Sumber daya dibuat |
+| `204` | Berhasil, tanpa badan respons |
+| `400` | Badan permintaan rusak atau gagal validasi |
+| `401` | Cookie sesi hilang, tidak dikenal, atau tanpa baris `app_user` |
+| `403` | Terautentikasi, tetapi peran atau koperasinya tidak mengizinkan |
+| `404` | Tidak ada **atau** milik koperasi lain |
+| `409` | Konflik keadaan — alokasi terlampaui, pesanan sudah final, musim sudah punya pesanan terbuka |
+| `422` | Penolakan domain yang **bisa ditindaklanjuti pengguna** |
+| `500` | Kegagalan tak terduga; detailnya ke log peladen, bukan ke klien |
+| `503` | `CRON_SECRET` belum dikonfigurasi |
+
+> **`404` sengaja menyatukan "tidak ada" dan "bukan milikmu".** Membedakannya membuat id milik koperasi lain bisa diprobe satu per satu.
+>
+> **`422` bukan `400`.** `400` berarti *"permintaanmu rusak"*; `422` berarti *"permintaanmu utuh, tetapi dunianya tidak mengizinkan"* — dan hanya yang kedua yang punya kalimat berguna untuk pengguna.
+
+#### 9.1.6 Tanggal, angka, dan `null`
+
+| Aturan | Bentuk |
+|---|---|
+| Tanggal kalender | `YYYY-MM-DD`, UTC |
+| Cap waktu penuh (`created_at`, `responded_at`, `printed_at`) | RFC 3339 |
+| Minggu ISO | `YYYY-MM-DD` — **tanggal Senin** minggu itu |
+| **`null` ≠ `0`** | `null` berarti **masukannya belum ada**; `0` berarti **nol memang jawabannya**. Berlaku di seluruh API — `impact.*`, `capacity.tonnes_per_week`, `metrics.gross_value`, `quantities_kg[]` |
+
+Contoh yang menjelaskan aturan terakhir, dari `GET /api/dashboard`:
+
+```json
+"impact": {
+  "price_vs_reference": 240.5,   // koperasi 240,5 rupiah/kg di atas referensi
+  "days_to_payment": 0,          // NOL HARI: dibayar di hari panen — sebuah fakta
+  "input_cost_saved": null,      // belum ada pesanan `completed` — bukan "hemat Rp0"
+  "tonnes_diverted": null        // belum ada penggeseran yang diterapkan
+}
+```
+
+---
+
+### 9.2 Ringkasan Seluruh Endpoint
+
+**38 rute backend + 3 rute layanan AI = 41 endpoint.** Dua belas di antaranya tidak menuntut akun sama sekali.
+
+#### Publik — 12 rute, tanpa cookie sesi
+
+| Method | Path | Ringkas |
+|:--:|---|---|
+| `GET` | `/api/health` | Liveness |
+| `POST` | `/api/auth/signup` | Pendaftaran pembeli |
+| `POST` | `/api/auth/login` | Menukar kredensial → cookie sesi |
+| `POST` | `/api/auth/refresh` | Menyegarkan sesi tanpa kata sandi |
+| `POST` | `/api/auth/logout` | Mencabut sesi di GoTrue **dan** Redis |
+| `GET` | `/api/commodities` | Katalog referensi komoditas + varietas |
+| `GET` | `/api/catalog` | Listing panen mendatang + opsi saringan |
+| `GET` | `/api/catalog/cooperatives/:id` | Listing satu koperasi |
+| `GET` | `/api/public/plots/:publicId` | Halaman lahan publik ([F7](#f7--halaman-lahan-publik-tanpa-akun)) |
+| `GET` | `/api/public/plan-share/:token` | Rencana satu anggota, dibagikan lewat token |
+| `GET` | `/api/atlas/cooperatives` | Pin koperasi untuk Atlas |
+| `GET` | `/api/atlas/farms/:id` | Daftar lahan satu koperasi |
+
+#### Terautentikasi — 25 rute
+
+| Method | Path | Akses | Ringkas |
+|:--:|---|:--:|---|
+| `GET` | `/api/me` | semua | Identitas pemanggil |
+| `GET` | `/api/dashboard` | 🔵🟣 | Proyeksi 12 minggu + tabrakan + dampak + kalibrasi |
+| `GET` | `/api/plots` | 🔵🟣 | Daftar lahan |
+| `GET` | `/api/plots/:id` | 🔵🟣 | Satu lahan beserta bloknya |
+| `POST` | `/api/plots` | 🔵🟣 | Mendaftarkan lahan + 1–6 tanaman |
+| `POST` | `/api/blocks/:id/split` | 🔵🟣 | Memecah blok |
+| `PATCH` | `/api/blocks/:id` | 🔵🟣 | Menyunting blok yang berdiri |
+| `DELETE` | `/api/plots/:id` | 🟣 | Menghapus pendaftaran lahan |
+| `PATCH` | `/api/blocks/:id/harvest` | 🔵🟣 | Mencatat panen → **tanda terima kalibrasi** |
+| `GET` | `/api/harvests` | 🔵🟣 | Riwayat panen |
+| `GET` | `/api/capacity` | 🔵🟣 | Kapasitas gudang per komoditas |
+| `PUT` | `/api/capacity` | 🟣 | Menyetel kapasitas — **mengubah ambang deteksi tabrakan** |
+| `GET` | `/api/rdkk` | 🔵🟣 | Formulir RDKK terhitung |
+| `POST` | `/api/input-orders` | 🟣 | Membuat pesanan kelompok (draf tanpa harga) |
+| `GET` | `/api/input-orders` | 🔵🟣 | Daftar pesanan |
+| `PATCH` | `/api/input-orders/:id` | 🟣 | Transisi status pesanan |
+| `GET` | `/api/supply-requests` | 🟣🟠 | Permintaan pasokan — sisi koperasi atau sisi pembeli |
+| `POST` | `/api/supply-requests` | 🟠 | Mengajukan kontrak pasokan |
+| `PATCH` | `/api/supply-requests/:id` | 🟣 | Terima atau tolak |
+| `POST` | `/api/stagger` | 🟣 | Menerapkan penggeseran tanam |
+| `GET` | `/api/plans/propose` | 🟣 | **Menyusun tiga rencana** musim depan |
+| `GET` | `/api/plans` | 🔵🟣 | Daftar rencana |
+| `GET` | `/api/plans/:id` | 🔵🟣 | Satu rencana + item + token berbagi anggota |
+| `POST` | `/api/plans` | 🟣 | **Menerapkan** rencana → melahirkan blok musim depan |
+| `POST` | `/api/plans/:id/cancel` | 🟣 | **Membatalkan** rencana |
+
+#### Cron — 1 rute, autentikasi terpisah
+
+| Method | Path | Ringkas |
+|:--:|---|---|
+| `POST` | `/api/cron/weather` | Menyegarkan riwayat + ramalan cuaca per sel grid |
+
+---
+
+### 9.3 Endpoint Publik
+
+#### `GET /api/health`
+
+```json
+{ "data": { "status": "ok", "service": "terrion-backend" } }
+```
+
+---
+
+#### `POST /api/auth/signup` — pendaftaran pembeli
+
+Hanya `buyer` yang boleh mendaftar sendiri. Akun koperasi dibuat operator lewat `cmd/register` — **tidak ada formulir yang bisa membedakan koperasi sungguhan dari nama yang diketik.**
+
+```json
+{
+  "full_name": "Rina Hartati",
+  "organisation": "PT Pangan Nusantara",
+  "email": "rina@pangannusantara.co.id",
+  "phone": "081234567890",
+  "password": "rahasia-panjang",
+  "confirm_password": "rahasia-panjang"
+}
+```
+
+| Field | Validasi |
+|---|---|
+| `full_name` | wajib, min 2 |
+| `organisation` | wajib, min 2 |
+| `email` | wajib, format email |
+| `phone` | wajib, 8–20 karakter — **satu-satunya cara koperasi membalas permintaan pasokan** |
+| `password` | wajib, min 8 |
+| `confirm_password` | wajib, sama dengan `password` |
+
+**`201`**
+
+```json
+{ "data": { "outcome": "signed_in" } }
+```
+
+| `outcome` | Arti |
+|---|---|
+| `signed_in` | Akun dibuat **dan** sesi langsung terbentuk — cookie ikut dikirim |
+| `confirm_email` | Akun dibuat, menunggu konfirmasi email |
+
+> **Mendaftar ulang alamat yang sudah ada mengembalikan respons yang sama persis dengan pendaftaran baru.** Membedakannya berarti formulir pendaftaran menjadi alat untuk menguji alamat email mana yang terdaftar.
+
+---
+
+#### `POST /api/auth/login`
+
+```json
+{ "email": "kader@terrion.test", "password": "terrion-demo-2026" }
+```
+
+**`200`** — beserta `Set-Cookie: terrion_session=…`
+
+```json
+{
+  "data": {
+    "id": "8c1f…",
+    "role": "kader",
+    "cooperative_id": "3a7e…",
+    "full_name": "Ujang Suryana",
+    "organisation": null,
+    "phone": "0812…"
+  }
+}
+```
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Email atau kata sandi salah | `400` | `invalid_credentials` |
+| Badan permintaan gagal validasi | `400` | `validation_failed` |
+
+> Kata sandi salah **dan** email tidak terdaftar mengembalikan kode yang sama.
+
+---
+
+#### `POST /api/auth/refresh` · `POST /api/auth/logout`
+
+| Endpoint | Perilaku |
+|---|---|
+| `refresh` | Menukar refresh token GoTrue yang tersimpan. **Id sesi tidak berubah** — tidak ada cookie baru yang dikirim balik. `401` bila id sesi sudah tidak ada di Redis |
+| `logout` | Mencabut sesi **di GoTrue dan menghapusnya dari Redis**, lalu mengosongkan cookie. Idempoten |
+
+---
+
+#### `GET /api/commodities`
+
+Katalog referensi: 9 komoditas prioritas subsidi beserta varietasnya. Dipakai formulir pendaftaran lahan — **`variety` nonaktif sampai `commodity` dipilih**, dan daftarnya disaring dari respons ini.
+
+```json
+{
+  "data": [
+    {
+      "id": "k-padi", "slug": "padi", "name": "Padi", "sprite_row": 0,
+      "varieties": [
+        {
+          "id": "v-inpari32", "commodity_id": "k-padi", "name": "Inpari 32",
+          "days_to_harvest_min": 100, "days_to_harvest_max": 120,
+          "yield_per_ha_min": 4.5, "yield_per_ha_max": 6.8
+        }
+      ]
+    }
+  ]
+}
+```
+
+> `days_to_harvest_min/max` **tidak dipakai untuk memangkas jendela panen** — ia hanya menilai, lewat label plausibilitas. Lihat [F2, keputusan #3](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri).
+
+---
+
+#### `GET /api/catalog`
+
+| Query | Default | Keterangan |
+|---|:--:|---|
+| `weeks` | `12` | Horizon proyeksi, maksimum **52** — memperpanjangnya menampilkan jendela panen **musim depan** |
+| `commodity_id` | — | Saring komoditas |
+| `province` | — | Saring provinsi |
+| `weeks_ahead` | — | Batasi ke *n* minggu ke depan |
+| `min_tonnes` | — | Batas bawah tonase listing |
+
+```json
+{
+  "data": {
+    "listings": [
+      {
+        "id": "3a7e…:k-padi:2027-W10",
+        "cooperative_id": "3a7e…", "cooperative_name": "KDMP Sukamandi",
+        "province": "Jawa Barat", "district": "Subang", "village": "Sukamandi",
+        "commodity_id": "k-padi", "commodity_name": "Padi",
+        "variety_name": "Inpari 32",
+        "iso_week": "2027-03-08", "week_start": "2027-03-08", "week_end": "2027-03-14",
+        "tonnes": 12.4,
+        "basis": "climatology"
+      }
+    ],
+    "commodities": [{ "id": "k-padi", "name": "Padi" }],
+    "provinces": ["Jawa Barat"]
+  }
+}
+```
+
+| `basis` | Arti |
+|---|---|
+| `observed` | Dihitung dari cuaca yang **sudah terjadi** |
+| `forecast` | Dari ramalan cuaca |
+| `climatology` | Dari **normals** ~10 tahun — cuaca musim itu belum terjadi |
+
+> Cache 1 jam di Redis, **dan kunci cache-nya memuat horizon**. Cache diinvalidasi setiap kali sebuah rencana diterapkan atau dibatalkan: *listing musim depan tidak boleh hidup lebih lama daripada rencana yang melahirkannya.*
+
+---
+
+#### `GET /api/public/plots/:publicId` — halaman lahan publik
+
+Dibuka petani anggota dari tautan WhatsApp, **tanpa akun**.
+
+```json
+{
+  "data": {
+    "public_id": "SKM-0412", "name": "Sawah Kidul",
+    "area_ha": 0.5, "tile_size_m2": 100,
+    "member_name": "Ujang Suryana",
+    "village": "Sukamandi", "district": "Subang",
+    "terrain_seed": 918273, "degraded": false,
+    "cooperative_name": "KDMP Sukamandi",
+    "blocks": [
+      {
+        "id": "b1", "label": "A", "area_ha": 0.5, "order_index": 0,
+        "commodity_name": "Padi", "variety_name": "Inpari 32", "sprite_row": 0,
+        "planting_date": "2026-11-12",
+        "window": { "start": "2027-03-05", "end": "2027-03-11", "confidence": 0.8, "…": "…" },
+        "yield_range_tonnes": { "min": 2.25, "max": 3.40 }
+      }
+    ],
+    "neighbours": {
+      "position": 4, "total": 47,
+      "previous": { "public_id": "SKM-0411", "name": "Sawah Lor", "member_name": "Sri Wahyuni", "area_ha": 0.75 },
+      "next": { "public_id": "SKM-0413", "name": "Kebon Cabe", "member_name": "Endang", "area_ha": 0.4 },
+      "others": []
+    }
+  }
+}
+```
+
+**Yang tidak akan pernah muncul di respons ini:**
+
+| Tidak ada | Ditutup di mana |
+|---|---|
+| `lat` / `lng` | **Di lapis data** — endpoint ini membaca view `public_plot` yang memang **tidak punya kolom** lintang dan bujur (`R9`) |
+| `price` | Di halaman yang bisa dibuka siapa pun, harga terbaca sebagai **harga penawaran**, dan koperasi belum menawarkan |
+| Proyeksi internal koperasi | Bukan milik pembaca halaman ini |
+
+> `yield_range_tonnes` berasal dari **min/maks varietas yang dipublikasikan**, bukan dari model hasil internal. Halaman publik memberi rentang yang bisa dipertanggungjawabkan tanpa membocorkan proyeksi koperasi.
+
+---
+
+#### `GET /api/public/plan-share/:token` — rencana satu anggota
+
+Token dibuat otomatis saat rencana **diterapkan**, satu per anggota, dan muncul di `member_shares` pada `GET /api/plans/:id`.
+
+```json
+{
+  "data": {
+    "member_name": "Ujang Suryana",
+    "cooperative_name": "KDMP Sukamandi",
+    "season_label": "MT I 2026/2027",
+    "plan_status": "applied",
+    "items": [
+      {
+        "plot_name": "Sawah Kidul", "commodity_name": "Padi", "variety_name": "Inpari 32",
+        "planting_date": "2026-11-12", "harvest_start": "2027-03-05", "harvest_end": "2027-03-11",
+        "area_ha": 0.5, "tonnes_low": 2.25, "tonnes_mid": 2.80, "tonnes_high": 3.40,
+        "plausibility": "plausible"
+      }
+    ],
+    "fertiliser": [{ "input_item": "Urea", "quantity_kg": 130, "sources": ["Permentan No. 40/2007"] }],
+    "over_subsidy_cap": null
+  }
+}
+```
+
+`404 plan share not found` bila token tidak dikenal. Membuka token **mencatat waktu pembacaan pertama** — itulah yang mengisi `viewed` dan `first_viewed_at` di sisi pengurus.
+
+---
+
+#### `GET /api/atlas/cooperatives` · `GET /api/atlas/farms/:id`
+
+```json
+{ "data": [ {
+  "id": "3a7e…", "name": "KDMP Sukamandi",
+  "village": "Sukamandi", "district": "Subang", "province": "Jawa Barat",
+  "lat": -6.34, "lng": 107.76, "plot_count": 47, "hectares": 24.6
+} ] }
+```
+
+> Koordinat **koperasi** boleh publik — ia alamat kantor. Koordinat **lahan** tidak pernah. Perbedaan itu ditegakkan oleh dua sumber data yang berbeda, bukan oleh penyaringan di controller.
+
+`GET /api/atlas/farms/:id` mengembalikan `{ cooperative_id, name, village, district, province, plots[], total_hectares }`, dengan tiap lahan berisi `{ public_id, name, member_name, area_ha, crops[] }` — **tanpa koordinat**.
+
+---
+
+### 9.4 Endpoint Terautentikasi — Lahan, Panen, dan Dasbor
+
+#### `GET /api/me`
+
+```json
+{ "data": { "id": "8c1f…", "role": "pengurus", "cooperative_id": "3a7e…",
+            "full_name": "Siti Aminah", "organisation": null, "phone": "0813…" } }
+```
+
+`cooperative_id` bernilai `null` untuk `buyer`.
+
+---
+
+#### `GET /api/dashboard`
+
+| Query | Default | Maks |
+|---|:--:|:--:|
+| `weeks` | `12` | `52` |
+
+```json
+{
+  "data": {
+    "weeks": [
+      { "iso_week": "2027-03-08", "week_start": "2027-03-08",
+        "expected_tonnes": 18.3, "min_tonnes": 12.1, "max_tonnes": 24.6,
+        "block_ids": ["b1", "b7", "b19"] }
+    ],
+    "flagged": [
+      { "iso_week": "2027-03-08", "week_start": "2027-03-08",
+        "commodity_id": "k-padi", "commodity_name": "Padi",
+        "tonnes": 32.5, "threshold": 18.0, "basis": "median",
+        "plot_count": 12, "block_ids": ["b1", "b7"] }
+    ],
+    "lead": { "…": "minggu berisiko yang diangkat ke depan pengurus" },
+    "suggestions": [
+      { "iso_week": "2027-03-08", "commodity_id": "k-padi", "commodity_name": "Padi",
+        "block_ids": ["b1", "b7", "b19"], "shift_days": 10,
+        "tonnes_moved": 14.2, "resulting_tonnes": 18.3 }
+    ],
+    "upcoming": { "rows": [], "total_tonnes": 0 },
+    "impact": { "price_vs_reference": null, "days_to_payment": null,
+                "input_cost_saved": null, "tonnes_diverted": null },
+    "calibrations": []
+  }
+}
+```
+
+**Tiga hal yang perlu dibaca dengan benar:**
+
+| Field | Aturan |
+|---|---|
+| `weeks` | **Selalu berisi 12 entri berturut-turut, termasuk yang nol.** Menghilangkan minggu sepi akan memampatkan sumbu waktu dan membuat jeda jadwal terbaca sebagai rentetan minggu sibuk |
+| `flagged[].basis` | `capacity` = dibandingkan kapasitas gudang yang koperasi setel sendiri · `median` = **2,5 × median mingguan koperasi itu**. Peringatan **selalu menyatakan dasarnya** |
+| `lead` | Minggu terberat **di antara yang melibatkan minimal 2 lahan**. Satu lahan besar di atas ambang adalah lahan besar, bukan tumpukan — tidak ada yang bisa digeser terhadapnya |
+| `impact.*` | Keempatnya *nullable*. `null` = masukannya belum ada; `0` = nol memang jawabannya |
+| `calibrations` | Kosong sampai koperasi mencatat panen. **Tidak ada yang dikarang untuk mengisinya** |
+
+---
+
+#### `GET /api/plots` · `GET /api/plots/:id`
+
+Daftar mengembalikan `PlotSummaryResponse[]` — dipimpin `next_window`, bukan hektarnya:
+
+```json
+{ "data": [ {
+  "id": "p1", "name": "Sawah Kidul", "public_id": "SKM-0412", "area_ha": 0.5,
+  "member_name": "Ujang Suryana", "block_count": 2,
+  "next_window": { "start": "2027-03-05", "end": "2027-03-11", "confidence": 0.8,
+                   "gdd_accumulated": 1180.4, "gdd_required": 1450,
+                   "stage": 2, "basis": "forecast", "plausibility": "plausible" },
+  "expected_tonnes": 2.8, "commodity_ids": ["k-padi"], "progress": 0.81
+} ] }
+```
+
+Detail menambahkan blok, `terrain_seed`, `tile_size_m2`, `degraded`, dan **harga acuan per blok**:
+
+```json
+"price": {
+  "latest":   { "price_per_kg": 6400, "week_start": "2026-09-07" },
+  "seasonal": { "price_per_kg": 6100, "week_start": "2026-03-09" },
+  "source": "SINTETIS — ganti dengan panel harga Badan Pangan Nasional"
+}
+```
+
+| Field | Aturan |
+|---|---|
+| `price.seasonal` | Minggu yang sama setahun lalu, **−364 hari** dari pembukaan jendela panen. **Bukan 365** — panel terbit tiap Senin, dan 365 hari dari Senin mendarat di Minggu, yang menurut ISO adalah minggu sebelumnya |
+| `price.seasonal` = `null` | Panel tidak menerbitkan minggu yang cocok. Layar mengatakannya, **bukan** diam-diam memakai `latest` sebagai ramalan |
+| `price` = `null` | Provinsi lahan ini belum punya panel untuk komoditas itu. **Hanya Jawa Barat yang ter-seed** |
+| `price.source` | **Selalu ditampilkan.** Selama panelnya sintetis, ia mengatakan itu |
+| `degraded` | `true` bila lahan tidak punya data cuaca. Lahan **tetap muncul, ditandai** — bukan hilang dari daftar |
+
+---
+
+#### `POST /api/plots` — 🔵🟣 mendaftarkan lahan
+
+```json
+{
+  "member_name": "Ujang Suryana",
+  "member_phone": "081234567890",
+  "plot_name": "Sawah Kidul",
+  "lat": -6.3412, "lng": 107.7623,
+  "plantings": [
+    { "commodity_id": "k-padi", "variety_id": "v-inpari32",
+      "planting_date": "2026-11-12", "area_ha": 0.38 },
+    { "commodity_id": "k-cabai", "variety_id": "v-tm999",
+      "planting_date": "2026-11-20", "area_ha": 0.37 }
+  ]
+}
+```
+
+| Field | Validasi |
+|---|---|
+| `member_name` | wajib, min 2 |
+| `member_phone` | opsional, 8–15 |
+| `plot_name` | wajib, min 1 |
+| `lat` | wajib, **−11 … 6** (kotak Indonesia) |
+| `lng` | wajib, **95 … 141** |
+| `plantings` | wajib, **1–6 entri** |
+| `plantings[].area_ha` | wajib, 0,01 … 1000 |
+
+**`201`** → `{ "data": { "plot_id": "p1", "public_id": "SKM-0412" } }`
+
+> `public_id` adalah **titik serah ke petani anggota** — kader mengirimnya lewat WhatsApp. Luas lahan **tidak dikirim**: ia adalah jumlah `plantings[].area_ha`, sehingga tidak ada dua angka luas yang bisa bertentangan.
+
+---
+
+#### `POST /api/blocks/:id/split` — memecah blok
+
+```json
+{ "area_ha": 0.25, "commodity_id": "k-cabai", "variety_id": "v-tm999", "planting_date": "2026-12-02" }
+```
+
+| Kegagalan | Status | Kode | `data` |
+|---|:--:|---|---|
+| Blok sudah tidak ada / bukan milikmu | `404` | `split_block_already_gone` | — |
+| Blok sudah dipanen | `422` | `split_block_harvested` | — |
+| Di bawah luas minimum | `422` | `split_below_minimum` | `min_ha` |
+| Sisa blok asal terlalu kecil | `422` | `split_leaves_too_little` | `block_area_ha`, `max_takeable_ha` |
+
+> **Hektar lahan tidak berubah setelah dipecah** — yang berubah hanya pembagiannya.
+
+---
+
+#### `PATCH /api/blocks/:id` — menyunting blok
+
+```json
+{ "area_ha": 0.5, "commodity_id": "k-padi", "variety_id": "v-ciherang", "planting_date": "2026-11-15" }
+```
+
+`area_ha` **wajib**; tiga lainnya opsional. Formulir di layar terisi penuh dari keadaan sekarang, jadi yang dikirim balik adalah **keadaan yang diinginkan seluruhnya**, bukan tambalan sebagian.
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Blok sudah tidak ada | `404` | `edit_block_already_gone` |
+| Blok sudah dipanen | `422` | `edit_block_harvested` |
+
+---
+
+#### `DELETE /api/plots/:id` — 🟣 saja
+
+> Menyunting apa yang berdiri di lahan adalah pekerjaan lapangan. **Menghapus seluruh lahan tidak** — itu membuang pendaftaran, dan hanya pengurus yang menanggungnya.
+
+---
+
+#### `PATCH /api/blocks/:id/harvest` — mencatat panen
+
+```json
+{
+  "actual_harvest_date": "2027-03-09",
+  "actual_yield_kg": 2840,
+  "actual_price_per_kg": 6300,
+  "payment_received_date": "2027-03-16"
+}
+```
+
+| Field | Wajib | Kenapa begitu |
+|---|:--:|---|
+| `actual_harvest_date` | ✅ | — |
+| `actual_yield_kg` | ✅ | `> 0` |
+| `actual_price_per_kg` | — | **Sering belum diketahui pada hari panen**: hasil meninggalkan lahan sebelum pembeli melunasi |
+| `payment_received_date` | — | Alasan yang sama |
+
+**`200` — tanda terima kalibrasi:**
+
+```json
+{
+  "data": {
+    "block_id": "b1", "plot_id": "p1",
+    "calibration": {
+      "variety_id": "v-inpari32", "variety_name": "Inpari 32", "commodity_name": "Padi",
+      "offset_days": 8.0,
+      "applied_offset_days": 2.0,
+      "n_observations": 1,
+      "residual_sd": 0.0
+    }
+  }
+}
+```
+
+> **`offset_days` versus `applied_offset_days` adalah inti fiturnya.** Yang pertama adalah apa yang dikatakan panen tercatat; yang kedua adalah apa yang benar-benar dipakai prediktor setelah ditarik ke arah model dasar dengan `n/(n+3)`. **Dua panen tidak berhak menggeser prediksi sejauh dua puluh panen** — dan selisih kedua angka itulah kejujurannya.
+>
+> `calibration` bernilai `null` bila panen ini yang pertama untuk varietasnya dan belum ada yang bisa dikatakan.
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Blok sudah tidak ada / bukan milikmu | `404` | `harvest_block_already_gone` |
+| Panen blok ini sudah dicatat | `422` | `harvest_already_recorded` |
+| Tanggal panen sebelum tanggal tanam | `422` | `harvest_before_planting` |
+| Tanggal panen belum terjadi | `422` | `harvest_in_future` |
+| Tanggal pembayaran sebelum panen | `422` | `harvest_payment_before_crop` |
+
+**Ketahanan yang disengaja:** panen ditulis dan di-*commit* lebih dahulu; kalibrasi dihitung **setelahnya, di luar transaksi**. Bila pengambilan data cuaca gagal, panen tetap tersimpan dan `calibration` kembali `null` — membatalkan entri seorang petani karena API cuaca sedang mati adalah urutan yang terbalik.
+
+---
+
+#### `GET /api/harvests` — riwayat panen
+
+Mencatat panen mengeluarkan blok dari kanvas; ini tempat catatannya tetap bisa dibaca.
+
+```json
+{ "data": { "records": [ {
+  "block_id": "b1", "block_label": "A", "plot_id": "p1", "plot_name": "Sawah Kidul",
+  "member_name": "Ujang Suryana", "commodity_name": "Padi", "variety_name": "Inpari 32",
+  "area_ha": 0.5, "planting_date": "2026-11-12", "harvest_date": "2027-03-09",
+  "actual_yield_kg": 2840, "price_per_kg": 6300, "payment_date": "2027-03-16"
+} ] } }
+```
+
+> **Tidak ada `basis` dan tidak ada rentang di sini**, tidak seperti jendela panen: ini bukan perkiraan, melainkan angka yang diketik seseorang yang berdiri di lahan itu.
+
+---
+
+#### `GET /api/capacity` · `PUT /api/capacity` — 🟣 untuk menulis
+
+```json
+{ "data": { "rows": [
+  { "commodity_id": "k-padi",  "commodity_name": "Padi",  "tonnes_per_week": 18.0 },
+  { "commodity_id": "k-cabai", "commodity_name": "Cabai", "tonnes_per_week": null }
+] } }
+```
+
+`PUT` mengirim **seluruh tabel sekaligus**, bukan satu baris:
+
+```json
+{ "rows": [ { "commodity_id": "k-padi", "tonnes_per_week": 18.0 },
+            { "commodity_id": "k-cabai", "tonnes_per_week": null } ] }
+```
+
+| Aturan | Alasan |
+|---|---|
+| `tonnes_per_week: null` **menghapus** kapasitas | Mengembalikannya ke ambang berbasis median. **`null` berarti belum diukur, bukan nol** — dengan nol, deteksi tabrakan akan menandai setiap minggu yang berisi apa pun |
+| Seluruh tabel, bukan per baris | Layarnya memang satu formulir. Menyimpan per baris berarti separuh perubahan bisa tersimpan sementara separuh lainnya gagal |
+| `tonnes_per_week` harus `> 0` bila diisi | — |
+
+`422 capacity_commodity_unknown` bila `commodity_id` bukan komoditas referensi.
+
+> Angka ini adalah **ambang deteksi tabrakan**. Mengubahnya mengubah cara seluruh koperasi membaca minggunya sendiri — itulah alasan hanya pengurus yang boleh.
+
+---
+
+### 9.5 Endpoint Terautentikasi — RDKK, Pasar, Penggeseran, Rencana
+
+#### `GET /api/rdkk`
+
+| Query | Keterangan |
+|---|---|
+| `label` | Label musim, mis. `MT I 2026/2027` |
+| `from` · `to` | Rentang tanggal eksplisit (`YYYY-MM-DD`) |
+
+Salah satu **wajib** ada — `400 season is required` bila keduanya kosong.
+
+```json
+{
+  "data": {
+    "meta": { "cooperative_name": "KDMP Sukamandi", "village": "Sukamandi",
+              "district": "Subang", "province": "Jawa Barat",
+              "season_label": "MT I 2026/2027",
+              "season_start": "2026-10-01", "season_end": "2027-03-31",
+              "printed_at": "2026-09-06T10:22:41Z" },
+    "columns": ["Urea", "SP-36", "KCl"],
+    "rows": [
+      { "member_id": "m1", "member_name": "Ujang Suryana", "planted_ha": 0.5,
+        "quantities_kg": [130, 50, 30], "over_subsidy_cap": false, "excess_ha": 0 },
+      { "member_id": "m2", "member_name": "Sri Wahyuni", "planted_ha": 2.4,
+        "quantities_kg": [624, 240, 144], "over_subsidy_cap": true, "excess_ha": 0.4 },
+      { "member_id": "m3", "member_name": "Endang", "planted_ha": 0.4,
+        "quantities_kg": [104, null, 24], "over_subsidy_cap": false, "excess_ha": 0 }
+    ],
+    "totals": [858, 290, 198],
+    "sources": ["Permentan No. 40 Tahun 2007", "Acuan N-P-K Jagung, Kementan",
+                "BELUM DIVERIFIKASI — cabai, wortel, kentang"],
+    "member_count": 47, "total_planted_ha": 24.6,
+    "members_over_cap": 2,
+    "commodities_without_rates": ["Kopi"],
+    "subsidy_cap_ha": 2.0
+  }
+}
+```
+
+**Empat aturan yang membuat formulir ini bisa ditandatangani:**
+
+| Aturan | Wujudnya di respons |
+|---|---|
+| **`null` ≠ `0`** (`R7`) | `quantities_kg[1] = null` untuk Endang berarti **pupuk itu tidak berlaku baginya**, dan dicetak `—`. Di formulir yang ditandatangani, `0` tercetak adalah **pesanan untuk nol karung** |
+| **Batas 2 ha ditandai, tidak dipotong** | `over_subsidy_cap: true` + `excess_ha: 0.4`, **per nama**. Memotong diam-diam menghasilkan formulir yang lolos verifikasi tetapi salah, dan tidak ada yang tahu anggota mana yang dikurangi |
+| **Komoditas tanpa acuan dinyatakan** | `commodities_without_rates`, bukan dihitung nol |
+| **Sumber dinyatakan** | `sources[]` memuat label **BELUM DIVERIFIKASI** untuk acuan yang belum bisa dipertanggungjawabkan |
+
+Karung dibulatkan **ke atas** di layar, dan layar **menyatakan bahwa ia melakukannya**: 47,3 karung berarti membeli 48; pembulatan diam-diam membuat angka di layar tidak cocok dengan angka di nota.
+
+---
+
+#### `POST /api/input-orders` · `GET /api/input-orders` · `PATCH /api/input-orders/:id`
+
+```json
+{ "lines": [ { "item": "Urea", "quantity": 858 }, { "item": "SP-36", "quantity": 290 } ] }
+```
+
+**`201`** → `{ "data": { "order_id": "o1", "lines": 2 } }`
+
+Daur hidup status:
+
+```
+draft ──► submitted ──► completed
+  │           │
+  └───────────┴────────► cancelled
+```
+
+```json
+{ "data": [ {
+  "id": "o1", "season_label": "MT I 2026/2027", "status": "submitted",
+  "created_at": "2026-09-06T10:30:00Z", "created_by_name": "Siti Aminah",
+  "status_changed_at": "2026-09-07T08:00:00Z", "status_changed_by_name": "Siti Aminah",
+  "next_statuses": ["completed", "cancelled"],
+  "lines": [ { "item": "Urea", "quantity": 858, "unit": "kg", "quantity_rdkk": 858 } ]
+} ] }
+```
+
+| Field | Aturan |
+|---|---|
+| `next_statuses` | **Peladen yang menentukan transisi mana yang sah**, bukan layar. Layar hanya menggambar tombol dari daftar ini |
+| `quantity_rdkk` | Angka RDKK saat pesanan dibuat, untuk dibandingkan dengan yang benar-benar dipesan. `null` bila item tidak ada di RDKK |
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Pesanan tidak ditemukan | `404` | `order_not_found` |
+| Transisi status tidak sah | `409` | `order_transition_invalid` |
+| Pesanan sudah final (`completed`/`cancelled`) | `409` | `order_already_final` |
+| Musim sudah punya pesanan terbuka | `409` | `order_season_already_open` |
+| Item tidak dikenal | `422` | `order_line_unknown` |
+| Tidak ada baris | `422` | `order_lines_empty` |
+| RDKK musim itu kosong | `422` | `rdkk_nothing_to_order` |
+
+> Pesanan adalah **draf tanpa harga** — `R8`, tidak ada uang berpindah di dalam Terrion.
+
+---
+
+#### `GET /api/supply-requests`
+
+Satu endpoint, **dua sisi**: `pengurus` melihat permintaan yang masuk ke koperasinya; `buyer` melihat permintaan yang ia kirim.
+
+```json
+{ "data": [ {
+  "id": "r1", "cooperative_id": "3a7e…",
+  "buyer_id": "u9", "buyer_name": "Rina Hartati",
+  "buyer_organisation": "PT Pangan Nusantara", "buyer_phone": "081234567890",
+  "cooperative_name": "KDMP Sukamandi", "cooperative_phone": "0813…",
+  "commodity_id": "k-padi", "volume_kg": 12000,
+  "window_start": "2027-03-08", "window_end": "2027-03-14",
+  "status": "pending", "notes": "Butuh GKP, kadar air ≤ 25%",
+  "created_at": "2026-09-06T11:02:00Z", "responded_at": null
+} ] }
+```
+
+> **Nomor telepon tidak didenormalisasi ke baris permintaan, dan itu disengaja.** Nama pembeli disalin saat permintaan dibuat; nomor dicari ulang tiap kali. Nomor berubah — yang tersimpan pada permintaan enam bulan lalu akan menjadi nomor yang sudah tidak dijawab siapa pun. Kedua nomor ada supaya layar bisa menyusun tautan WhatsApp: **Terrion tidak punya pesan di dalam aplikasi; yang diberikannya adalah pertemuannya.**
+
+---
+
+#### `POST /api/supply-requests` — 🟠 pembeli saja
+
+```json
+{
+  "listing_id": "3a7e…:k-padi:2027-W10",
+  "volume_tonnes": 12,
+  "delivery_preference": "antar_ke_gudang",
+  "notes": "Butuh GKP, kadar air ≤ 25%"
+}
+```
+
+**Tiga isian — dan tiga hal yang sengaja tidak ditanyakan.** Koperasi, komoditas, dan jendela pengiriman diambil dari `listing_id` **di sisi peladen**. Kalau pembeli boleh mengetiknya sendiri, ia bisa **mengarang jendela panen yang tidak pernah diproyeksikan koperasi mana pun**.
+
+| `delivery_preference` | |
+|---|---|
+| `antar_ke_gudang` | Antar ke gudang pembeli |
+| `ambil_di_koperasi` | Ambil sendiri di koperasi |
+| `belum_ditentukan` | Belum ditentukan |
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| `listing_id` tidak dikenal | `400` | `listing_unknown` |
+| Listing sudah tidak ada saat dikirim | `422` | `listing_gone` |
+
+> **Meminta lebih dari proyeksi tetap terkirim.** Peringatan muncul saat mengetik di layar, menyebut kedua angka — tetapi permintaannya berangkat: **koperasi berhak mengatakan ya kepada lebih dari yang diproyeksikan.** Yang menjaga totalnya adalah invarian di sisi penerimaan, bukan penolakan di sisi pengiriman.
+
+---
+
+#### `PATCH /api/supply-requests/:id` — 🟣 menjawab
+
+```json
+{ "decision": "accepted" }
+```
+
+`accepted` atau `declined`. **Keduanya tidak bisa dikembalikan** ke `pending`.
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Permintaan tidak ada / milik koperasi lain | `404` | `request_not_found` |
+| **Total tonase diterima akan melampaui proyeksi** | `409` | `allocation_exceeded` |
+
+> **Invarian alokasi.** Sebelum sebuah permintaan diterima, peladen menjumlahkan **seluruh volume yang sudah `accepted` untuk koperasi × komoditas × jendela yang sama**, dan menolak bila totalnya melampaui proyeksi. Peringatan di formulir memberi tahu pembeli; **invarian di peladen menjaga koperasi** — berapa pun yang diketik siapa pun.
+>
+> **Dinding antar-koperasi:** pengurus koperasi A memanggil endpoint ini dengan id milik koperasi B dan mendapat `404`, bukan `403`. Bukan pesan izin ditolak — **tidak ada**.
+
+---
+
+#### `POST /api/stagger` — 🟣 menerapkan penggeseran
+
+```json
+{ "iso_week": "2027-03-08", "commodity_id": "k-padi" }
+```
+
+Menerapkan saran yang muncul di `dashboard.suggestions` untuk minggu dan komoditas itu.
+
+**`200`** → `{ "data": { "shifted": 3 } }`
+
+| Kegagalan | Status | Kode | `data` |
+|---|:--:|---|---|
+| Saran sudah basi (data berubah sejak dibaca) | `422` | `stagger_suggestion_stale` | — |
+| Tidak ada blok yang bisa digeser | `422` | `stagger_nothing_to_shift` | `{ already_planted, would_be_in_the_past }` |
+
+```json
+{
+  "errors": "stagger_nothing_to_shift",
+  "data": { "already_planted": 3, "would_be_in_the_past": 0 }
+}
+```
+
+> **Penolakan ini menjelaskan dirinya per blok, bukan per permintaan.** `already_planted: 3` memberi tahu pengurus bahwa ketiga blok sudah di tanah — dan blok yang sudah di tanah punya tanggal tanam nyata; menulis ulangnya tidak memindahkan satu ton panen pun, ia hanya membuat catatan bertengkar dengan lapangan.
+>
+> Pada koperasi yang seluruh catatannya dibuat **setelah** tanam, endpoint ini **selalu** mengembalikan penolakan ini. Yang mengubahnya bukan aturannya, melainkan populasi yang memenuhi syarat: blok yang lahir dari [rencana musim depan](#-rencana-tanam-musim-depan) tanggal tanamnya masih di depan.
+
+Penerapan menulis tanggal tanam **dan** entri log `stagger_applied` sebagai **satu peristiwa** — entri log tanpa perubahan tanggal akan mengarang pengalihan yang tidak pernah terjadi; perubahan tanggal tanpa entri log menyembunyikannya. Log itulah yang mengisi ubin dampak *tonase teralihkan*.
+
+---
+
+<a id="-rencana-tanam-musim-depan"></a>
+
+#### `GET /api/plans/propose` — 🟣 menyusun tiga rencana
+
+| Query | Wajib | Keterangan |
+|---|:--:|---|
+| `season` | ✅ | Label musim target, mis. `MT I 2026/2027` |
+| `goal` | — | Tujuan pengurus dalam **bahasa bebas**, maks 500 karakter |
+
+> **Ini `GET`, dan itu disengaja:** ia tidak menulis apa pun. Menyusun rencana adalah perhitungan; yang menulis adalah `POST /api/plans`. Konsekuensinya jawaban ini bisa di-cache — **TTL 6 jam, berkunci `sha256` dari muatan permintaan.**
+
+```json
+{
+  "data": {
+    "season": { "label": "MT I 2026/2027", "start": "2026-10-01", "end": "2027-03-31",
+                "planting_from": "2026-10-05", "planting_to": "2027-01-04" },
+    "basis": "climatology",
+    "engine": "ai-service",
+    "yield_observations": 97,
+    "limits": "Rencana ini dihitung dari iklim rata-rata sepuluh tahun. Cuaca musim depan belum terjadi.",
+    "previous_season": { "label": "MT I 2025/2026", "peak_tonnes": 32.5,
+                         "total_tonnes": 198.0, "blocks": 141 },
+    "plans": [
+      {
+        "objective": "aman",
+        "narrative": "Rencana ini disusun agar panen tidak menumpuk di satu minggu…",
+        "metrics": { "peak_tonnes_expected": 18.3, "peak_tonnes_worst": 24.1,
+                     "gross_value": 163280000.0, "demand_covered_kg": 12000,
+                     "total_tonnes_mid": 204.0, "flagged_weeks": 0 },
+        "assignments": [
+          { "plot_id": "p1", "plot_name": "Sawah Kidul",
+            "member_id": "m1", "member_name": "Ujang Suryana", "area_ha": 0.5,
+            "commodity_id": "k-padi", "variety_id": "v-inpari32", "variety_name": "Inpari 32",
+            "planting_date": "2026-11-12",
+            "harvest_start": "2027-03-05", "harvest_end": "2027-03-11",
+            "plausibility": "plausible",
+            "tonnes_low": 2.25, "tonnes_mid": 2.80, "tonnes_high": 3.40 }
+        ],
+        "thresholds": [ { "commodity_id": "k-padi", "tonnes_per_week": 18.0, "basis": "capacity" } ],
+        "flagged": [],
+        "fertiliser": [ { "input_item": "Urea", "quantity_kg": 1240,
+                          "sources": ["Permentan No. 40 Tahun 2007"] } ],
+        "fertiliser_unrated": ["Kopi"],
+        "over_subsidy_cap": [ { "member_id": "m2", "member_name": "Sri Wahyuni",
+                                "planted_ha": 2.4, "excess_ha": 0.4 } ]
+      }
+    ],
+    "skipped": [ { "plot_id": "p9", "plot_name": "Kebon Atas", "member_name": "Dedi",
+                   "reason": "masih ada tanaman sepanjang jendela tanam" } ],
+    "evaluations": 18420
+  }
+}
+```
+
+**Enam field yang tidak boleh disembunyikan layar:**
+
+| Field | Kenapa ia ada di respons |
+|---|---|
+| `basis: "climatology"` | Cuaca musim depan belum terjadi. Label ini **tampil di kartu rencana**, bukan di catatan kaki (`P2`) |
+| `engine` | `ai-service` atau `fallback` — **sistem tidak menyamarkan solver mana yang menjawab** |
+| `limits` | Kalimat tetap yang menyertai setiap rencana |
+| `metrics.gross_value` = `null` | Komoditas tanpa harga acuan → **kosong, bukan Rp0** (`P3`) |
+| `metrics.peak_tonnes_worst` | Skenario ketika **cuaca menyeragamkan kematangan** — setiap jendela runtuh ke titik tengahnya. Rencana *Aman* diskor **di sana**, bukan pada nilai harapan |
+| `skipped[]` | Lahan yang tidak dapat penugasan **didaftar menurut nama beserta alasannya** — bukan hilang diam-diam dari rencana |
+
+**Tiga rencana adalah tiga sudut dari trade-off yang sama**, bukan tiga rencana terbaik:
+
+| `objective` | `w_puncak` | `w_nilai` | `w_pesanan` | Diskor pada |
+|---|:--:|:--:|:--:|---|
+| `aman` | 0,70 | 0,20 | 0,10 | **puncak terburuk** |
+| `pendapatan` | 0,15 | 0,75 | 0,10 | nilai harapan |
+| `pasar` | 0,20 | 0,20 | 0,60 | permintaan tertutup |
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Koperasi belum punya lahan | `422` | `plan_no_plots` |
+| Riwayat cuaca sel grid belum terisi | `422` | `plan_no_climate_normals` |
+| Musim target sudah dimulai | `422` | `plan_season_closed` |
+| Seluruh lahan masih ada tanamannya | `422` | `plan_no_eligible_plots` |
+| `goal` melebihi 500 karakter | `422` | `plan_goal_too_long` |
+
+---
+
+#### `POST /api/plans` — 🟣 menerapkan rencana
+
+```json
+{
+  "season_label": "MT I 2026/2027",
+  "objective": "aman",
+  "assignments": [
+    { "plot_id": "p1", "variety_id": "v-inpari32", "planting_date": "2026-11-12" },
+    { "plot_id": "p2", "variety_id": "v-ciherang", "planting_date": "2026-11-22" }
+  ]
+}
+```
+
+**`201`** → `{ "data": { "plan_id": "sp1", "blocks": 47 } }`
+
+> **Klien mengirim pilihan, peladen menerbitkan angka.** Karena pengurus boleh mengubah penugasan di layar, penerapan **tidak boleh mempercayai satu angka pun dari peramban:**
+
+| Yang dikirim klien | Yang dilakukan peladen |
+|---|---|
+| `plot_id`, `variety_id` | Diverifikasi **milik koperasi pemanggil** |
+| `planting_date` | Diverifikasi **di masa depan** dan **di dalam jendela musim** |
+| Kelayakan lahan | **Dihitung ulang** |
+| Tonase, jendela panen, plausibilitas | **Tidak pernah dibaca dari permintaan** — dihitung ulang seluruhnya |
+
+Perhatikan bahwa `ApplySeasonPlanRequest` **tidak punya field** untuk tonase, jendela panen, atau nilai — kebocoran kepercayaan menjadi **mustahil secara struktural**, bukan dicegah oleh pemeriksaan.
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Musim itu sudah punya rencana aktif | `422` | `plan_already_applied` |
+| Satu penugasan tidak lolos validasi ulang | `422` | `plan_assignment_rejected` — jawabannya menyebut **lahan mana** |
+
+> `plan_already_applied` **ditegakkan oleh indeks unik di basis data**, bukan oleh pemeriksaan di kode — sehingga dua permintaan bersamaan tidak bisa saling menyalip.
+
+Penerapan adalah **satu transaksi**, dan di ujungnya cache katalog diinvalidasi: jendela panen baru saja bertambah.
+
+---
+
+#### `GET /api/plans` · `GET /api/plans/:id`
+
+```json
+{
+  "data": {
+    "id": "sp1", "season_label": "MT I 2026/2027",
+    "season_start": "2026-10-01", "season_end": "2027-03-31",
+    "objective": "aman", "status": "applied",
+    "created_at": "2026-09-06T12:00:00Z", "cancelled_at": null,
+    "items": [ { "id": "i1", "plot_id": "p1", "plot_name": "Sawah Kidul",
+                 "member_id": "m1", "member_name": "Ujang Suryana",
+                 "commodity_id": "k-padi", "commodity_name": "Padi",
+                 "variety_id": "v-inpari32", "variety_name": "Inpari 32",
+                 "area_ha": 0.5, "planting_date": "2026-11-12",
+                 "harvest_start": "2027-03-05", "harvest_end": "2027-03-11",
+                 "plausibility": "plausible",
+                 "tonnes_low": 2.25, "tonnes_mid": 2.80, "tonnes_high": 3.40,
+                 "block_id": "b41" } ],
+    "member_shares": [ { "member_id": "m1", "member_name": "Ujang Suryana",
+                         "member_phone": "081234567890",
+                         "share_token": "kZ7x…", "viewed": true,
+                         "first_viewed_at": "2026-09-07T06:11:00Z" } ]
+  }
+}
+```
+
+| Field | Keterangan |
+|---|---|
+| `status` | `applied` · `cancelled` |
+| `items[].block_id` | Blok yang lahir dari item ini. `null` bila bloknya sudah dihapus |
+| `member_shares[].share_token` | Dipakai menyusun tautan `/api/public/plan-share/:token` untuk dikirim lewat WhatsApp |
+| `member_shares[].viewed` | Apakah anggota sudah membuka rencananya — **umpan balik yang membuat kader tahu tautannya sampai** |
+
+`404 plan_not_found` bila rencana tidak ada atau milik koperasi lain.
+
+---
+
+#### `POST /api/plans/:id/cancel` — 🟣 membatalkan
+
+**`200`** → `{ "data": { "plan_id": "sp1", "blocks_removed": 47 } }`
+
+Satu tindakan: menghapus seluruh blok rencana yang **belum ditanam dan belum dipanen**, memangkas jejak penggeseran yang menunjuk blok-blok itu, lalu menandai rencana `cancelled`.
+
+| Kegagalan | Status | Kode |
+|---|:--:|---|
+| Rencana sudah dibatalkan | `422` | `plan_already_cancelled` |
+| Sebagian blok sudah lewat tanggal tanamnya | `422` | `plan_partially_cancellable` |
+
+> **Catatan kader tidak tersentuh.** Blok rencana yang tanggal tanamnya sudah lewat **tidak dihapus** — tanamannya sudah di tanah, dan menghapusnya berarti menghapus kenyataan. Jumlahnya dinyatakan dalam penolakan.
+
+---
+
+### 9.6 Endpoint Cron
+
+#### `POST /api/cron/weather`
+
+**Autentikasi berbeda dari seluruh API:** header `Authorization: Bearer <CRON_SECRET>`, bukan cookie sesi. Dibandingkan dengan `crypto/subtle.ConstantTimeCompare` supaya waktu eksekusi tidak membocorkan berapa byte awal yang sudah benar.
+
+```bash
+curl -X POST https://<domain>/api/cron/weather \
+  -H "Authorization: Bearer $CRON_SECRET"
+```
+
+```json
+{ "data": { "cells": 2, "rows_written": 96, "backfilled": 0, "failed": [] } }
+```
+
+| Status | Kapan |
+|:--:|---|
+| `401` | Token tidak cocok |
+| `503` | **`CRON_SECRET` belum dikonfigurasi** — layanan tanpa rahasia yang dikonfigurasi tidak punya cara membedakan pemanggil yang sah, jadi ia menolak semuanya |
+
+Pengambilan bersifat **idempoten**: satu hari hanya boleh sampai ke *upsert* sekali. Cuaca diambil per **sel grid 0,25°**, bukan per lahan — satu unduhan melayani setiap lahan di sel yang sama.
+
+---
+
+### 9.7 Kontrak Internal Dua Layanan — `v1.0`
+
+`Terrion_Backend` → `Terrion_AI`. **Server-ke-server, tidak bisa dijangkau peramban.**
+
+```
+Authorization: Bearer <AI_SERVICE_TOKEN>
+X-Request-Id: <id yang merambat dari Go, untuk ditelusuri lintas dua layanan>
+Content-Type: application/json
+```
+
+| Endpoint | Fungsi |
+|---|---|
+| `POST /v1/plan/propose` | Menyelesaikan satu soal perencanaan, mengembalikan satu rencana per objektif |
+| `GET /health` | Liveness — proses hidup |
+| `GET /ready` | Readiness — solver siap dan konfigurasi lengkap |
+
+```json
+// GET /ready
+{ "status": "ok", "contract_version": "1.0", "cpsat": true, "llm_provider": "sumopod" }
+```
+
+#### Permintaan
+
+```json
+{
+  "contract_version": "1.0",
+  "request_id": "9f2c…",
+  "seed": 20356,
+  "season": { "label": "MT I 2026/2027", "start": "2026-10-01", "end": "2027-03-31" },
+  "objectives": ["aman", "pendapatan", "pasar"],
+  "goal": "Musim depan saya tidak mau harga jatuh seperti Maret kemarin.",
+  "capacity_tonnes_per_week": 18.0,
+  "candidates": [
+    { "id": "c001", "plot_ref": "p1", "area_ha": 0.5,
+      "commodity_ref": "k1", "variety_ref": "v3",
+      "planting_date": "2026-11-12",
+      "harvest_start": "2027-01-02", "harvest_end": "2027-01-16",
+      "tonnes_low": 2.91, "tonnes_mid": 3.60, "tonnes_high": 4.42,
+      "plausibility": "plausible", "price_per_kg": 5200 }
+  ],
+  "demand": [ { "commodity_ref": "k1", "iso_week": "2027-03-08", "kg": 12000 } ],
+  "observations": [ { "gdd_ratio": 0.98, "area_ha": 0.5,
+                      "mean_temp_c": 27.4, "yield_index": 1.04 } ]
+}
+```
+
+**Anonimisasi ditegakkan oleh bentuk tipe, bukan oleh penyaringan.**
+
+| Aturan | Konsekuensinya |
+|---|---|
+| Setiap identitas menjadi **referensi buram** — `p1`, `k1`, `v3` (pola `^[pkv][0-9]+$`) | UUID memang bukan nama, tetapi ia **pengenal stabil** yang memungkinkan korelasi lintas permintaan dan lintas waktu |
+| Referensi **dibangkitkan ulang tiap permintaan**, dari urutan pemanggilan | Log lama pun tidak merakit apa pun |
+| Struct `Candidate` **tidak punya field** untuk nama, NIK, koordinat, desa, atau nama koperasi | Kebocoran menjadi **kesalahan kompilasi**, bukan kesalahan tinjauan kode |
+| Peta baliknya **tidak pernah meninggalkan proses Go** | — |
+
+Dibuktikan dari dua sisi: `TestRequestCarriesNoPersonalData` (Go) dan `test_no_personal_data.py` (Python).
+
+**Batas ukuran, ditegakkan Pydantic:**
+
+| Batas | Nilai |
+|---|:--:|
+| `candidates` | ≤ **2.000** |
+| `demand` | ≤ **400** baris |
+| `goal` | ≤ **500** karakter |
+| `objectives` | 1–3 |
+| Id kandidat | Pola `^c[0-9]{3,5}$`, **wajib unik** |
+
+Validator tambahan menolak tonase yang tidak terurut (`low ≤ mid ≤ high`) dan jendela panen terbalik.
+
+#### Respons
+
+```json
+{
+  "contract_version": "1.0",
+  "request_id": "9f2c…",
+  "solver": "cp-sat",
+  "solver_version": "9.11",
+  "elapsed_ms": 412,
+  "plans": [
+    { "objective": "aman",
+      "candidate_ids": ["c001", "c014", "c087"],
+      "metrics": { "peak_tonnes_p50": 9.1, "peak_tonnes_p90": 11.8,
+                   "total_tonnes": 31.4, "gross_value": 163280000.0,
+                   "demand_covered_kg": 12000 },
+      "narrative": "Rencana ini disusun agar panen tidak menumpuk…",
+      "narrative_source": "llm" }
+  ],
+  "diagnostics": { "evaluations": 18420, "monte_carlo_draws": 2000,
+                   "objective_status": "OPTIMAL", "degraded": [] }
+}
+```
+
+> **Go hanya memakai `candidate_ids` dan `narrative`.** Seluruh `metrics` masuk log diagnostik lalu **dibuang**, dan setiap angka dihitung ulang oleh `planning.Measure` dari kandidat yang backend sendiri terbitkan. Kandidat dengan id yang tidak dikenal **dilewati diam-diam**, dan rencana yang menjadi kosong setelah penyaringan **membatalkan seluruh jawaban AI** sehingga pemanggil jatuh ke fallback.
+>
+> Itulah yang membuat klaim *"radius ledakan terburuk adalah saran yang tidak optimal"* menjadi benar, bukan retorika: satu bug pembulatan di Python **tidak bisa** menghasilkan RDKK atau proyeksi yang salah di Terrion.
+
+| `narrative_source` | Arti |
+|---|---|
+| `llm` | Ditulis model bahasa **dan lolos penjaga numerik** |
+| `template` | Dirakit dari fakta terhitung — model gagal, kehabisan kuota, atau menulis angka yang tidak cocok |
+| `none` | Tidak ada narasi |
+
+#### Kesalahan
+
+| Status | Kode | Kapan |
+|:--:|---|---|
+| `400` | `malformed_request` | Validasi Pydantic gagal — detail memuat 3 galat pertama |
+| `401` | `unauthenticated` | Token tidak cocok. Dibandingkan `hmac.compare_digest`; **token kosong menolak semuanya** |
+| `409` | `contract_version_unsupported` | `MAJOR` berbeda |
+| `422` | `problem_too_large` | Melampaui batas ukuran, dengan `actual_length` dan `max_length` |
+
+> **Versi tidak cocok = `409`, bukan diam-diam diproses.** Dua repo dideploy terpisah, dan kegagalan yang paling mungkin bukan bug logika melainkan **dua versi yang tidak seiring** — kegagalan seperti itu biasanya tampak sebagai *data aneh*, bukan sebagai galat. Penambahan field opsional menaikkan `MINOR`; kedua sisi mengabaikan field tak dikenal.
+
+#### Ketahanan di sisi pemanggil
+
+| Situasi | Perilaku Go |
+|---|---|
+| Batas waktu | **3.500 ms** per percobaan (`AI_SERVICE_TIMEOUT_MS`) |
+| Galat apa pun — **tanpa kecuali** | Jatuh ke `planning.Search` di dalam Go; respons menyebut `engine: "fallback"`. **Tidak ada galat yang sampai ke pengguna** |
+| 3 kegagalan berturut-turut | **Pemutus arus** membuka, menutup jalur **60 detik** — supaya tidak ada pengguna yang membayar batas waktu penuh hanya untuk jatuh ke fallback |
+| `AI_SERVICE_URL` kosong | `aiclient.NewClient` mengembalikan `nil`; solver lokal dipakai sejak awal |
+| Cache | Redis, kunci `sha256` muatan permintaan (`request_id` dikosongkan lebih dulu), **TTL 6 jam**. Diinvalidasi saat rencana diterapkan atau dibatalkan |
+
+**Determinisme adalah bagian kontrak:** `seed` **wajib** dan diisi **nomor hari**, bukan detik — sehingga dua permintaan pada hari yang sama identik. Python wajib deterministik terhadapnya: CP-SAT `num_search_workers=1`, Monte Carlo ber-seed, iterasi terurut, **satu worker Uvicorn**.
+
+---
+
+### 9.8 Tipe Bersama
+
+#### `HarvestWindowResponse`
+
+Muncul di `/api/plots`, `/api/plots/:id`, `/api/public/plots/:publicId`, dan di setiap item rencana.
+
+```json
+{
+  "start": "2027-03-05",
+  "end": "2027-03-11",
+  "confidence": 0.8,
+  "gdd_accumulated": 1180.4,
+  "gdd_required": 1450.0,
+  "stage": 2,
+  "basis": "forecast",
+  "plausibility": "plausible",
+  "cumulative_gdd": [ { "date": "2026-11-12", "gdd": 0 } ],
+  "projected_from": "2026-09-14"
+}
+```
+
+| Field | Aturan |
+|---|---|
+| `start` / `end` | **Selalu rentang, tidak pernah tanggal tunggal** (`R2`). Lebarnya berasal dari dua simulasi iklim pada **Z = ±1,2816** → P10/P90 |
+| `confidence` | `0.8`. Memakai ±1 SD akan memberi cakupan ~68% dan membuat label *"keyakinan 80%"* tidak benar |
+| `stage` | `0` `StageBare` · `1` `StageEstablished` · `2` `StageVegetative` · `3` `StageRipening` · `4` `StageReady` |
+| `basis` | `observed` · `forecast` · `climatology` |
+| `plausibility` | `plausible` · `early` · `late` · `implausible` |
+| `cumulative_gdd` | Deret GDD harian — **dibawa ke peramban** supaya penggeser waktu bekerja dengan **nol permintaan jaringan** |
+| `projected_from` | Tanggal ISO ketika `cumulative_gdd` berubah dari pembacaan nyata menjadi proyeksi climatology. `null` bila panen sudah tercapai di dalam cuaca yang diketahui |
+
+> Pencarian yang tidak matang dalam **400 hari mengembalikan 400** — bukan plafon varietasnya. Meminjam plafon akan menyamarkan pencarian gagal sebagai tanggal panen yang percaya diri.
+
+#### Enum
+
+| Enum | Nilai |
+|---|---|
+| `role` | `kader` · `pengurus` · `buyer` |
+| `basis` (jendela panen) | `observed` · `forecast` · `climatology` |
+| `basis` (ambang tabrakan) | `capacity` · `median` |
+| `plausibility` | `plausible` · `early` · `late` · `implausible` |
+| `objective` | `aman` · `pendapatan` · `pasar` |
+| `plan.status` | `applied` · `cancelled` |
+| `supply_request.status` | `pending` · `accepted` · `declined` · `withdrawn` |
+| `input_order.status` | `draft` · `submitted` · `completed` · `cancelled` |
+| `delivery_preference` | `antar_ke_gudang` · `ambil_di_koperasi` · `belum_ditentukan` |
+| `engine` | `ai-service` · `fallback` |
+| `solver` (AI) | `cp-sat` · `greedy` |
+| `narrative_source` (AI) | `llm` · `template` · `none` |
+| `signup.outcome` | `signed_in` · `confirm_email` |
+
+---
+
+### 9.9 Katalog Kode Kesalahan
+
+Seluruh kode yang bisa muncul di `errors`, dikelompokkan menurut ranahnya.
+
+| Ranah | Kode | Status |
+|---|---|:--:|
+| **Autentikasi** | `invalid_credentials` | `400` |
+| | `validation_failed` | `400` |
+| | `unauthorised` | `401` |
+| | `internal` | `500` |
+| **Blok — pecah** | `split_block_already_gone` | `404` |
+| | `split_block_harvested` | `422` |
+| | `split_below_minimum` | `422` |
+| | `split_leaves_too_little` | `422` |
+| **Blok — sunting** | `edit_block_already_gone` | `404` |
+| | `edit_block_harvested` | `422` |
+| **Panen** | `harvest_block_already_gone` | `404` |
+| | `harvest_already_recorded` | `422` |
+| | `harvest_before_planting` | `422` |
+| | `harvest_in_future` | `422` |
+| | `harvest_payment_before_crop` | `422` |
+| **Kapasitas** | `capacity_commodity_unknown` | `422` |
+| **RDKK & pesanan** | `order_not_found` | `404` |
+| | `order_transition_invalid` | `409` |
+| | `order_already_final` | `409` |
+| | `order_season_already_open` | `409` |
+| | `order_line_unknown` | `422` |
+| | `order_lines_empty` | `422` |
+| | `rdkk_nothing_to_order` | `422` |
+| **Katalog & pasokan** | `listing_unknown` | `400` |
+| | `request_not_found` | `404` |
+| | `listing_gone` | `422` |
+| | `allocation_exceeded` | `409` |
+| **Penggeseran** | `stagger_suggestion_stale` | `422` |
+| | `stagger_nothing_to_shift` | `422` |
+| **Rencana tanam** | `plan_not_found` | `404` |
+| | `plan_no_plots` | `422` |
+| | `plan_no_climate_normals` | `422` |
+| | `plan_season_closed` | `422` |
+| | `plan_no_eligible_plots` | `422` |
+| | `plan_goal_too_long` | `422` |
+| | `plan_already_applied` | `422` |
+| | `plan_already_cancelled` | `422` |
+| | `plan_assignment_rejected` | `422` |
+| | `plan_partially_cancellable` | `422` |
+| **Kontrak AI** | `malformed_request` | `400` |
+| | `unauthenticated` | `401` |
+| | `contract_version_unsupported` | `409` |
+| | `problem_too_large` | `422` |
+
+> **Setiap kode punya kalimat Bahasa Indonesia sendiri di frontend.** Itulah yang membuat jalur gagal ikut bisa didemokan: mencoba mencatat panen dengan tanggal besok menghasilkan kalimat yang berbeda dari mencatat panen yang sudah pernah dicatat.
+
+---
+
+### 9.10 Contoh Pemakaian
+
+#### cURL — alur pembeli dari nol
+
+```bash
+BASE=http://localhost:8080/api
+
+# 1. Daftar sebagai pembeli
+curl -s -X POST "$BASE/auth/signup" \
+  -H 'Content-Type: application/json' \
+  -d '{"full_name":"Rina Hartati","organisation":"PT Pangan Nusantara",
+       "email":"rina@example.co.id","phone":"081234567890",
+       "password":"rahasia-panjang","confirm_password":"rahasia-panjang"}'
+
+# 2. Masuk, simpan cookie sesi
+curl -s -c cookies.txt -X POST "$BASE/auth/login" \
+  -H 'Content-Type: application/json' \
+  -d '{"email":"rina@example.co.id","password":"rahasia-panjang"}'
+
+# 3. Telusuri katalog — publik, tidak butuh cookie
+curl -s "$BASE/catalog?commodity_id=k-padi&weeks=24&min_tonnes=5"
+
+# 4. Ajukan kontrak pasokan
+curl -s -b cookies.txt -X POST "$BASE/supply-requests" \
+  -H 'Content-Type: application/json' \
+  -d '{"listing_id":"3a7e...:k-padi:2027-W10","volume_tonnes":12,
+       "delivery_preference":"antar_ke_gudang","notes":"Kadar air <= 25%"}'
+
+# 5. Pantau statusnya
+curl -s -b cookies.txt "$BASE/supply-requests"
+```
+
+#### cURL — alur pengurus menyusun rencana musim depan
+
+```bash
+# 1. Susun tiga rencana (GET: tidak menulis apa pun)
+curl -s -b cookies.txt --get "$BASE/plans/propose" \
+  --data-urlencode 'season=MT I 2026/2027' \
+  --data-urlencode 'goal=Jangan sampai panen menumpuk di satu minggu'
+
+# 2. Terapkan yang dipilih — peladen menghitung ulang setiap angka
+curl -s -b cookies.txt -X POST "$BASE/plans" \
+  -H 'Content-Type: application/json' \
+  -d '{"season_label":"MT I 2026/2027","objective":"aman",
+       "assignments":[{"plot_id":"p1","variety_id":"v-inpari32","planting_date":"2026-11-12"}]}'
+
+# 3. RDKK musim depan — terbit SEBELUM musim dimulai
+curl -s -b cookies.txt --get "$BASE/rdkk" --data-urlencode 'label=MT I 2026/2027'
+
+# 4. Batalkan bila perlu — catatan kader tidak tersentuh
+curl -s -b cookies.txt -X POST "$BASE/plans/sp1/cancel"
+```
+
+#### TypeScript — klien yang dipakai frontend
+
+Seluruh percakapan HTTP melewati `lib/api/client.ts`:
+
+```ts
+import { apiFetch, ApiError, NETWORK_ERROR } from '@/lib/api/client'
+import type { DashboardResponse } from '@/lib/api/types'
+
+try {
+  const dashboard = await apiFetch<DashboardResponse>('/api/dashboard?weeks=12', {
+    sessionId,          // dibaca dari cookie oleh lib/auth/session.ts, bukan di sini
+  })
+  return dashboard
+} catch (error) {
+  if (error instanceof ApiError && error.status === NETWORK_ERROR) {
+    // Permintaan tidak pernah sampai ke backend: DNS, koneksi ditolak, timeout.
+    // Layar khusus "backend tidak bisa dihubungi" -- BUKAN dialihkan ke /login.
+    return { backendDown: true }
+  }
+  throw error
+}
+```
+
+> **`NETWORK_ERROR` adalah status `0`.** `fetch` menolak dengan `TypeError: fetch failed` yang tidak membawa status apa pun untuk dicabangkan pemanggil, jadi ia diberi satu yang **tidak mungkin bertabrakan dengan kode HTTP**. Ini yang membuat *"saya tidak bisa bertanya"* tetap bisa dibedakan dari *"jawabannya tidak"*.
+
+---
+
+### 9.11 CORS dan Batasan
+
+| Aspek | Ketentuan |
+|---|---|
+| **CORS** | Dibatasi daftar origin dari `WEB_CORS_ORIGINS` (dipisah koma), bukan `*`. Kredensial diizinkan — cookie sesi harus ikut |
+| **Paginasi** | **Belum ada.** `PageResponse` dan `PageMetadata` ada tetapi belum dipakai satu endpoint pun |
+| **Rate limiting** | **Belum ada.** Dinyatakan, bukan diklaim |
+| **Versi API** | API aplikasi **belum berversi** — hanya kontrak dua layanan yang punya `contract_version`. Untuk API yang pemanggil tunggalnya adalah frontend di repo yang sama, versi menambah disiplin tanpa menambah keamanan |
+| **Spesifikasi OpenAPI** | **Belum ada** untuk backend Go; `Terrion_AI` menerbitkannya otomatis lewat FastAPI di `/docs` dan `/openapi.json` |
+| **Idempotensi** | `POST /api/cron/weather` idempoten. `POST /api/plans` dijaga **indeks unik**, bukan kunci idempotensi |
+| **Pemeriksaan alokasi** | *Tally* dibaca di luar transaksi pembaruan — **rentan balapan**. `SELECT … FOR UPDATE` bila terbukti terjadi di lapangan |
 
 ---
 
@@ -2744,7 +4188,7 @@ Terrion_AI/
 | **Fungsionalitas Website** | 20% | [§1.5.5](#155-matriks-keselarasan--masalah--solusi--fitur--bukti) — matriks keselarasan; [§2.3](#23-fitur-utama) — tujuh fitur utama, masing-masing ditutup **mekanisme pembukti** yang benar-benar menolak; [§3.8](#38-ringkasan-dampak--sdg--gap--fitur--metrik--status) — metrik dampak yang benar-benar dihitung produk |
 | **UI/UX & Responsivitas** | 15% | [§1.7.2](#172-profil-unit-target-koperasi-bukan-petani) — lebar 360 px sebagai target utama; [§2.4 T5](#t5--aksesibilitas--responsivitas) dan [T7](#t7--navigasi--percepatan-kerja) |
 | **Implementasi Teknologi** | 15% | [§1.5.6](#156-kenapa-solusinya-berbentuk-begini--lima-keputusan-yang-menentukan) — lima keputusan rancangan; [§2.3 F2](#f2--jendela-panen-berbasis-akumulasi-suhu--kalibrasi-mandiri) dan [F6](#f6--perencana-tanam-musim-depan--fitur-pembeda-utama); [§2.4 T4](#t4--keamanan--isolasi-data) dan [T6](#t6--ketahanan-sistem); [**§5.2**](#52-alasan-pemilihan-teknologi) — alasan tiap teknologi beserta **alternatif yang ditolak**, [sepuluh ADR](#524-sepuluh-adr--keputusan-arsitektur-yang-tertulis), [analisis radius ledakan](#523-kenapa-tiga-layanan-bukan-satu--dan-di-mana-garis-potongnya), dan [§5.2.6](#526-teknologi-yang-sengaja-tidak-dipakai) teknologi yang sengaja tidak dipakai |
-| **Dokumentasi & Repositori** | 10% | [Catatan Metodologi Angka](#-catatan-metodologi-angka) + label provenans pada setiap angka + [daftar referensi bersumber](#-referensi) + keterlacakan fitur → masalah → invarian di [§2.5](#25-ringkasan-keterlacakan-fitur) + [§3.7](#37-batas-klaim-dampak--apa-yang-belum-bisa-dikatakan) batas klaim yang dinyatakan terbuka |
+| **Dokumentasi & Repositori** | 10% | [Catatan Metodologi Angka](#-catatan-metodologi-angka) + label provenans pada setiap angka + [daftar referensi bersumber](#-referensi) + keterlacakan fitur → masalah → invarian di [§2.5](#25-ringkasan-keterlacakan-fitur) + [§3.7](#37-batas-klaim-dampak--apa-yang-belum-bisa-dikatakan) batas klaim yang dinyatakan terbuka + [**§9**](#-9-api-documentation) dokumentasi 41 endpoint beserta [katalog kode kesalahan](#99-katalog-kode-kesalahan) dan [§9.11](#911-cors-dan-batasan) batasan API yang dinyatakan |
 
 ---
 
