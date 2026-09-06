@@ -2283,25 +2283,206 @@ Dinyatakan terbuka, sesuai [Catatan Metodologi Angka](#-catatan-metodologi-angka
 
 ### 6.1 System Architecture (FE · BE · AI)
 
-> 🚧 **Belum disusun.** Diagram kontainer tiga layanan sudah tersedia sementara di [§5.1.1](#511-peta-tiga-layanan); bab ini akan memperdalamnya menjadi diagram C4 L1–L3 beserta urutan `Propose` dengan seluruh jalur degradasinya.
+<div align="center">
+  <img src="./assets/terrion_whole_system_architecture.png" alt="Terrion Whole System Architecture" width="100%" />
+  <p><em>Gambar 6.1: Diagram Arsitektur Menyeluruh Terrion (Frontend, Backend, AI Inference, Data Pipeline, & Database)</em></p>
+</div>
+
+Sistem Terrion dibangun di atas arsitektur terdistribusi tiga layanan (*three-tier distributed service architecture*) dengan **tiga repositori terpisah** yang dioperasikan pada infrastruktur berbasis *edge* dan *cloud*. Seluruh desain sistem berpijak pada satu invarian fundamental: **kepemilikan data tidak pernah menyeberang (*Data Ownership Never Crosses Boundaries*)**.
+
+#### 6.1.1 Enam Lapisan Sistem Terintegrasi
+
+Berdasarkan diagram arsitektur menyeluruh pada Gambar 6.1, sistem terbagi ke dalam enam lapisan hierarkis yang bekerja secara terkoordinasi:
+
+1. **User & Frontend Layer (`Terrion_Frontend` · Next.js 15 / RSC · Vercel)**
+   * **Sasaran Pengguna**: Melayani lima persona yang memiliki kebutuhan dan batas wewenang berbeda: *Pengurus Koperasi* (pengambil keputusan produksi), *Kader Lapangan / PPL* (pencatat data persil & timbangan panen), *Petani Anggota* (penerima jadwal tanpa wajib mengunduh aplikasi), *Pembeli / Offtaker B2B* (pengaju kontrak pasokan komoditas), dan *Publik / Pemdes* (pemantau agregat transparansi pangan desa).
+   * **Enam Modul Layar Utama**:
+     * *Monitoring Dashboard* (`/dashboard`): Menampilkan deteksi dini tabrakan panen mingguan (*collision warning*), status lahan aktif, ringkasan tonase panen berjalan, dan widget cuaca mikro harian.
+     * *Kanvas Lahan & Blok GIS* (`/plots`, `/garden`): Pendaftaran hamparan persil fisik, pemecahan petak tanam (*split-block*), render sprite fenologi dinamis, dan riwayat perlakuan lahan.
+     * *Perencana Musim Depan* (`/rencana`): Konsol penyusunan rencana tanam musim depan yang menyajikan 3 skenario preskriptif, kurva perbandingan pasokan mingguan terhadap kapasitas gudang, aksi terapkan massal, dan pembatalan sekali klik.
+     * *Kapasitas & Staggering* (`/kapasitas`): Konfigurasi ambang tonase penjemuran/pengeringan (*dryer*) dan penggilingan (*Rice Milling Unit* - RMU) mingguan koperasi, deteksi beban berlebih (*overload*), dan rekomendasi penggeseran tanggal tanam.
+     * *Pencatatan Panen & Log* (`/panen`): Formulir pencatatan hasil timbangan panen riil, pelepasan status blok tanam aktif, rekonsiliasi harga per kilogram, dan pemicu pembaruan kalibrasi empiris.
+     * *RDKK, Offtaker & Portal Petani* (`/purchases`, `/requests`): Agregasi pupuk bersubsidi sesuai formula Permentan No. 40/2007 (dibatasi 2 hektare per NIK petani), penerbitan purchase order saprotan, etalase katalog B2B untuk kontrak offtaker, dan tautan rencana tanam mandiri `/rencana-saya/:token` via WhatsApp.
+
+2. **Prescriptive Optimization & Planning Simulation Layer**
+   * **Prescriptive Optimization Engine**: Mengubah paradigma pencatatan pasif menjadi optimasi aktif. Solver mengevaluasi ratusan kombinasi tanggal tanam dan varietas untuk menghasilkan 3 strategi preskriptif:
+     * *Rencana "Aman" (Risk-Averse)*: Menerapkan diskon ketidakpastian pada batas atas P90, meminimalkan tumpukan puncak panen di atas kapasitas koperasi.
+     * *Rencana "Pendapatan" (Revenue)*: Memaksimalkan estimasi rupiah bruto koperasi berdasarkan kurva harga acuan pasar historis pada minggu panen.
+     * *Rencana "Pasar" (Contract Fill)*: Memprioritaskan alokasi panen agar memenuhi volume kontrak pasokan offtaker persis pada minggu-minggu permintaan.
+   * **Planning Sandbox (Simulasi Skenario Musim)**: Ruang simulasi terisolasi sebelum rencana disahkan ke lapangan. Meliputi evaluasi kendala fisik lahan (maksimal 1 varietas per petak pada satu waktu, jeda olah tanah/turnaround 14 hari), uji ketahanan terhadap shock cuaca basah/kering, serta analisis *trade-off* antar skenario.
+
+3. **AI Model Inference Layer (`Terrion_AI` · Python FastAPI)**
+   * **Dual-Engine Architecture**: Menjalankan Google OR-Tools CP-SAT sebagai *integer programming solver* beranggaran waktu 3,5 detik. Jika solver mengalami *timeout* atau layanan mati, alur secara otomatis dialihkan ke *Go Heuristic Fallback* di lapisan backend tanpa memicu kegagalan sistem.
+   * **NumPy Vectorized Monte Carlo**: Melakukan 2.000 simulasi penarikan stokastik iklim berdasarkan kurva distribusi triangular untuk menghitung kuantil risiko P50 (median) dan P90 (skenario terburuk batas kapasitas).
+   * **LLM Narrative + Regex Guardrail**: Model bahasa menyusun penjelasan naratif manajerial dalam bahasa Indonesia. Seluruh angka di dalam narasi diverifikasi oleh *Regex Guardrail*; jika terdapat deviasi 1 digit terhadap hasil solver, seluruh narasi digugurkan demi menegakkan prinsip integritas angka (*Zero Hallucination*).
+
+4. **Backend & Core Service Layer (`Terrion_Backend` · Go 1.25 / Fiber · Railway)**
+   * **API Gateway**: Bertindak sebagai pintu gerbang tunggal dengan middleware *recovery*, proteksi CORS ketat, *cookie session handler*, *rate limiter*, pelacak `RequestID`, dan isolasi tenancy.
+   * **Delapan Layanan Inti**: Mengelola seluruh alur bisnis mulai dari otentikasi JWT, siklus hidup persil/blok, manajemen pupuk e-RDKK, agregasi katalog offtaker, hingga orkestrasi solver AI.
+   * **L1 Agronomy & Phenology Core Engine (Go Native)**: Mesin agronomi yang ditulis dalam Go murni untuk mengakumulasi GDD harian, memproyeksikan tanggal panen fisiologis berbasis klimatologi 10 tahunan, dan menghitung estimasi hasil panen via *Ridge Regression* dengan *Empirical-Bayes Shrinkage*.
+
+5. **Data Pipeline & Processing Layer (ETL · Zero-PII Boundary)**
+   * **Time Series & Climate Pipeline**: Mengambil telemetri cuaca Open-Meteo per jam, memetakan koordinat ke sel grid 0,25° (~27,75 km), menghitung akumulasi GDD ($\max(0, T_{\text{mean}} - T_{\text{base}})$ FAO-56), dan menghasilkan jendela panen adaptif `[start, end]`.
+   * **Tabular & Agronomic Feature Matrix**: Memproses persil aktif koperasi menjadi matriks 300–2.000 opsi kandidat tanam yang memuat varietas, estimasi tonase *three-point* `[low, mid, high]`, serta valuasi harga pasar.
+   * **Zero-PII Tokenization & Privacy Boundary (ADR-0004 & ADR-0006)**: Menghapus seluruh Data Pribadi (PII) sebelum payload dikirim ke layanan AI eksternal. Entitas ditransformasikan menjadi token buram (`p1`, `v1`, `k1`, `c001`). Hasil inferensi yang diterima kembali diverifikasi dan dihitung ulang (*zero-trust recalculation*) oleh Go sebelum dide-anonimisasi ke UUID asli database.
+
+6. **Database, Storage Layer, & External Telemetry (Single Source of Truth)**
+   * **PostgreSQL (Supabase OLTP)**: Satu-satunya pemilik kebenaran relasional bisnis, dilindungi oleh 16 pasang migrasi berurut dan Row-Level Security (RLS).
+   * **Redis (Upstash)**: Cache terdistribusi berkecepatan sub-milidetik untuk menyimpan sesi pengguna, proposal solver ter-hash SHA-256 (TTL 6 jam), dan katalog pasokan publik.
+   * **Geospatial View (`public_plot`)**: Mart spasial yang mengekspos data visual lahan publik tanpa koordinat latitude/longitude presisi.
+   * **Sumber Data Eksternal**: API Open-Meteo, Regulasi Pupuk Kementan RI (Permentan No. 40/2007), Standar FAO-56, Panel Harga PIHPS Bank Indonesia/Bapanas, dan data telemetri lapangan kader.
 
 ---
 
 ### 6.2 Frontend Architecture
 
-> 🚧 **Belum disusun.** Akan memuat batas Server/Client Component, alur Server Action, dan strategi *loading*/*error boundary* per rute.
+<div align="center">
+  <img src="./assets/frontend_architecture.png" alt="Terrion Frontend Architecture" width="100%" />
+  <p><em>Gambar 6.2: Arsitektur Berlapis Frontend Terrion (Next.js 16.3.2 · React Server Components · Layered Separation)</em></p>
+</div>
+
+Antarmuka pengguna Terrion dibangun dengan **Next.js 16.3.2 (App Router)** dan **TypeScript**. Arsitektur frontend menerapkan pemisahan ketat berdasarkan tanggung jawab kode untuk memastikan performa tinggi pada koneksi pedesaan dan kemudahan pengujian unit:
+
+> **Aturan Peletakan**: `app/` menjawab *"URL apa"*, `components/` menjawab *"terlihat seperti apa"*, dan `lib/` menjawab *"apa yang benar"* (logika murni, 100% bebas dari elemen visual JSX).
+
+#### 6.2.1 Lima Lapisan Arsitektur Frontend
+
+1. **Presentation Layer (`app/` — App Router)**
+   * Memanfaatkan paradigma *React Server Components (RSC)* secara bawaan untuk meminimalkan ukuran *bundle* JavaScript yang dikirim ke browser pengguna.
+   * Terbagi menjadi tiga *route groups* utama:
+     * `(public)`: Layanan publik tanpa autentikasi (Landing page `/`, `/beranda`, katalog komoditas `/catalog`, dan dasbor pengajuan pembeli `/my-requests`).
+     * `(app)`: Portal operasional koperasi yang dilindungi sesi (`/dashboard`, `/plots`, `/rencana`, `/purchases`, `/kapasitas`, `/panen`). Menggunakan layout terpadu dengan sidebar desktop dan bilah navigasi bawah ponsel.
+     * `(auth)`: Halaman autentikasi bersih (`/login`, `/signup`).
+     * `/atlas`: Peta kanvas interaktif layar penuh yang berdiri independen dari chrome aplikasi.
+   * **Server Actions (`app/actions/`)**: 11 Server Action berfungsi sebagai **satu-satunya gerbang mutasi data** dari sisi klien. Tidak ada panggilan `POST/PUT/DELETE` langsung dari browser ke backend; seluruh mutasi dieksekusi di server Next.js melalui cookie sesi HTTP-Only yang aman.
+
+2. **UI Layer (`components/`)**
+   * Terdiri dari 107 komponen yang dikelompokkan secara modular menurut domain bisnis:
+     * `shell & layout`: Kerangka antarmuka responsif (`Header`, `Sidebar`, `BottomNav`, `Footer`).
+     * `primitives` (23 komponen): Komponen atomik UI berbasis **Base UI / React** dan **Shadcn UI** dengan Tailwind CSS v4 (`Button`, `Input`, `Modal`, `Badge`, `Dropdown`).
+     * `feature components`: Modul antarmuka spesifik per ranah, seperti kanvas lahan (`components/plots/`), simulator rencana tanam (`components/planning/`), kartu katalog (`components/commerce/`), dan grafik metrik (`components/dashboard/`).
+   * Desain visual diperkuat oleh icon pack **Lucide React** yang ringan dan konsisten.
+
+3. **Domain Layer (`business logic`)**
+   * **Custom Hooks**: Mengelola siklus hidup interaksi UI kompleks, seperti manipulasi kamera dan render kanvas (`useCanvasCamera`), pemantauan posisi ubin (*hit-testing*), serta sinkronisasi filter perencanaan.
+   * **Form Handlers**: Manajemen formulir reaktif menggunakan **React Hook Form** yang terisolasi per komponen, menghindari re-render global pada saat pengisian data lahan.
+   * **Validation Engine**: Skema **Zod 4** yang digunakan serentak di sisi browser untuk validasi instan formulir dan di sisi Server Action sebelum data diteruskan ke backend.
+   * **Utils & Helpers**: Pustaka pembantu pemformatan mata uang rupiah, normalisasi satuan luas (hektare ke meter persegi), dan konstanta agronomi.
+
+4. **Data Access Layer (`data fetching`)**
+   * **HTTP Client Tunggal (`lib/api/client.ts`)**: Satu-satunya titik komunikasi jaringan aplikasi menuju REST API `Terrion_Backend`. Mengelola penerusan cookie sesi, penanganan batas waktu (*timeout*), dan normalisasi galat jaringan.
+   * **Built-in `fetch()` & Revalidation**: Memanfaatkan sistem caching bawaan Next.js dengan strategi revalidasi cerdas (`revalidateTag` dan `revalidatePath`). Data katalog di-cache dengan TTL terukur, sedangkan data rencana dan blok segera diinvalidasi saat terjadi aksi simpan.
+   * **Error & Loading Boundaries**: Penanganan status transisi data secara hierarkis menggunakan `loading.tsx` berbasis skeleton dan `error.tsx` untuk mencegah *crash* antarmuka menyeluruh.
+
+5. **Shared / Common Layer**
+   * `types/`: Definisi kontrak tipe TypeScript murni yang menjamin keselarasan skema data frontend dengan DTO backend Go.
+   * `lib/`: 27 modul logika murni yang mencakup algoritma akumulasi GDD, kalkulasi *bounding-box* ubin, *pseudo-random number generator* (xorshift32) untuk generasi tekstur tanah deterministik, dan pembuat tautan token WhatsApp.
+   * `config/`: Pengaturan variabel lingkungan (*environment variables*) dan konfigurasi build.
+   * `assets/`: Aset sumber grafis dan spritesheet visual (`crops.png`, `tiles.png`) yang disiapkan melalui skrip otomatis `scripts/build-sprites.ts`.
 
 ---
 
 ### 6.3 Backend Architecture
 
-> 🚧 **Belum disusun.** Akan memuat arsitektur berlapis `delivery → usecase → repository → entity`, kepemilikan transaksi, dan penegakan tenancy berlapis empat.
+<div align="center">
+  <img src="./assets/terrion_backend_architecture.png" alt="Terrion Backend Detailed Architecture" width="100%" />
+  <p><em>Gambar 6.3: Arsitektur Berlapis Backend Terrion (Clean Layered Architecture · Go 1.25.6 · Fiber v2 · GORM)</em></p>
+</div>
+
+Layanan `Terrion_Backend` dirancang menggunakan prinsip **Clean Layered Architecture** dengan bahasa pemrograman **Go 1.25.6** dan kerangka kerja HTTP **Fiber v2**. Arsitektur ini memisahkan secara tegas antara mekanisme pengiriman (*delivery*), logika bisnis (*usecase*), mesin domain murni (*pure engines*), dan akses basis data (*repository*).
+
+#### 6.3.1 Enam Lapisan Rekayasa Backend
+
+1. **Clients, External Ingress & Triggers**
+   * Melayani empat jenis pemicu eksternal:
+     * *Frontend Web App*: Permintaan HTTPS REST terautentikasi melalui cookie sesi `terrion_session` (HTTP-Only, SameSite=Lax).
+     * *Petani Binaan*: Permintaan publik bertoken tanpa login (`GET /api/public/plan-share/:token`) untuk melihat jadwal tanam individual via WhatsApp.
+     * *Pembeli Offtaker B2B*: Akses publik dan terotentikasi ke katalog pasokan (`/api/catalog`) dan pengajuan kontrak pasok (`/api/supply-requests`).
+     * *Automated Cron Scheduler*: Pemicu terjadwal (`POST /api/cron/weather`) untuk menyinkronkan data cuaca harian, diamankan menggunakan header rahasia `X-Cron-Secret`.
+
+2. **Delivery Layer (`internal/delivery/http` · RouteConfig)**
+   * **Middleware Chain (7 Lapisan Pertahanan)**:
+     1. `Fiber Recover & CORS`: Mencegah server mati (*panic recovery*) dan mengisolasi domain asal request.
+     2. `RequestID & Logrus Logger`: Menginjeksi UUID unik ke dalam header `X-Request-ID` untuk penelusuran log terstruktur lintas layanan.
+     3. `AuthMiddleware`: Memvalidasi klaim token JWT HS256 Supabase Auth (`auth.uid()`).
+     4. `RequireRole`: Memastikan hak akses berbasis peran (`'kader'`, `'pengurus'`, atau `'buyer'`).
+     5. `Cooperative Multi-Tenancy Scoper`: Mengekstrak `cooperative_id` milik pengguna dan menguncinya ke dalam konteks eksekusi.
+     6. `CronSecret Protection`: Membatasi endpoint sinkronisasi cuaca hanya untuk worker cron resmi.
+     7. `Custom Fiber JSON Error Handler`: Menstandardisasi format respons galat ke dalam envelope terstruktur (`error_code`, `message`, `details`).
+   * **10 HTTP Controller**: Mengisolasi penanganan rute per domain bisnis (`AuthController`, `PlotController`, `PlanningController`, `CapacityController`, `StaggerController`, `RdkkController`, `CatalogController`, `DashboardController`, `PublicController`, `WeatherController`).
+
+3. **Usecase Layer (`internal/usecase` · Business Logic & DTO Converters)**
+   * Berfungsi sebagai pengatur alur kerja (*orchestrator*) bisnis aplikasi:
+     * `PlanningUseCase`: Menyiapkan matriks kandidat tanam, memanggil solver AI eksternal atau fallback Go, serta menghitung ulang seluruh tonase dan tanggal panen secara mandiri (ADR-0006).
+     * `ProjectionUseCase`: Menghubungkan parameter varietas tanaman dengan data cuaca untuk menghasilkan jendela panen dan proyeksi tonase tiga angka `[low, mid, high]`.
+     * `PlotUseCase`: Mengelola pendaftaran persil, pemecahan petak tanam fisik (*SplitBlock*), dan pencatatan panen riil.
+     * `RdkkUseCase`: Menghitung kuota subsidi pupuk (Urea, SP-36, NPK) berdasarkan batas maksimal 2 hektare per NIK (Permentan No. 40/2007) dan mengelola status pemesanan pupuk kolektif.
+     * `AuthUseCase`: Mengelola pendaftaran dan login via GoTrue API, verifikasi kredensial, dan penyimpanan sesi di Redis.
+     * `DashboardUseCase`, `Capacity & StaggerUseCase`, `Catalog & SupplyRequestUseCase`, `Public & AtlasUseCase`, `WeatherUseCase`.
+   * **Transaction Ownership**: *Usecase* memegang kendali penuh atas batas transaksi basis data (`tx := db.Begin()`). Jika terjadi kegagalan pada salah satu operasi multi-tabel, usecase mengeksekusi `tx.Rollback()`; jika sukses, `tx.Commit()`. Lapisan repositori dilarang keras membuka atau menutup transaksi sendiri.
+
+4. **Pure Domain Engines (Database-Independent · 100% Unit Testable)**
+   * Paket komputasi murni tanpa dependensi ke database SQL maupun cache Redis:
+     * `internal/agronomy`: Perhitungan akumulasi panas harian (`gdd.go`), estimasi panen fisiologis gabungan riil dan iklim 10 tahunan (`predict.go`), estimasi produktivitas via regresi Ridge (`yield.go`), kalibrasi empiris galat riil di lapangan (`calibrate.go`), dan deteksi tabrakan panen mingguan (`collide.go` & `stagger.go`).
+     * `internal/planning`: Algoritma pencarian cadangan berbasis *Greedy & Bounded Local Search* (`search.go`), simulasi skenario (`simulate.go`), dan pembatasan vektor permintaan pasar (`demand.go`).
+     * `internal/aiclient`: Modul stripping data pribadi menjadi token buram (`anonymise.go`), pemutus sirkuit kegagalan jaringan (`breaker.go`), dan klien HTTP dengan batas waktu 3,5 detik serta *fingerprint* proposal SHA-256 (`client.go` & `fingerprint.go`).
+     * `internal/rdkk`: Formula konversi hara tanah ke produk pupuk majemuk/tunggal (`aggregate.go`) dan mesin status pesanan saprotan (`order.go`).
+
+5. **Repository Layer (`internal/repository` · Generic Repository Pattern)**
+   * Mengabstraksi seluruh akses kueri data ke PostgreSQL melalui pustaka GORM. Terdiri dari 15 repositori spesifik: `PlotRepository`, `BlockRepository`, `MemberRepository`, `CooperativeRepo`, `SeasonPlanRepo`, `PlanShareTokenRepo`, `CommodityRepo`, `VarietyRepo`, `CalibrationRepo`, `FertiliserRateRepo`, `InputOrderRepo`, `SupplyRequestRepo`, `PublicPlotRepo`, `RefPriceRepo`, dan `WeatherRepo`.
+   * Setiap kueri secara ketat menginjeksi filter `cooperative_id = ?` untuk menegakkan kepemilikan data tenant.
+
+6. **Persistence Layer & External Infrastructure**
+   * **Supabase PostgreSQL (OLTP)**: Basis data relasional utama yang menampung 19 tabel dan diamankan oleh Row-Level Security (RLS).
+   * **Redis Upstash**: Lapisan penyimpanan sementara berkecepatan tinggi untuk caching proposal solver (TTL 6 jam) dan sesi pengguna.
+   * **Terrion_AI**: Layanan komputasi mikro berbasis Python FastAPI untuk menyelesaikan masalah kombinatorial menggunakan OR-Tools CP-SAT.
+   * **Open-Meteo & Supabase GoTrue**: Penyedia telemetri iklim eksternal dan penyedia identitas autentikasi.
 
 ---
 
 ### 6.4 AI Architecture
 
-> 🚧 **Belum disusun.** Akan memuat kontrak `v1.0`, jalur `solve → risk → narrate`, dan tiga pagar lapis bahasa.
+<div align="center">
+  <img src="./assets/backend_architecture.png" alt="Terrion AI and Optimization Pipeline Architecture" width="100%" />
+  <p><em>Gambar 6.4: Pipeline Preskriptif, Inferensi Solver, Simulasi Monte Carlo, dan Guardrail LLM</em></p>
+</div>
+
+Arsitektur kecerdasan buatan dan optimasi di Terrion (`Terrion_AI`) dirancang untuk memberikan rekomendasi preskriptif yang **dapat dipertanggungjawabkan secara matematis, aman dari kebocoran data pribadi, dan kebal dari halusinasi model bahasa**. 
+
+#### 6.4.1 Tiga Lapisan Pipeline Inferensi AI
+
+1. **Preprocessing Layer (Sanitasi & Pembentukan Matriks Kandidat)**
+   * **Preprocessing Numerical Layer**:
+     * Data persil fisik lahan dan blok tanam aktif dinormalisasi menurut luasannya.
+     * Mengonversi seluruh entitas sensitif menjadi token buram anonim (*Opaque Reference*): lahan menjadi `p1, p2`, varietas menjadi `v1, v2`, dan komoditas menjadi `k1, k2`.
+     * Menghitung jendela panen berbasis GDD mikro dan menyusun rentang estimasi tonase *three-point* `[low, mid, high]` untuk setiap kemungkinan kombinasi tanam.
+     * Menggabungkan matriks opsi dengan data batas kapasitas mingguan koperasi dan vektor kebutuhan pasar offtaker.
+   * **Preprocessing Textual Layer (Opsional & Terisolasi)**:
+     * Menangani instruksi bahasa alami dari pengurus koperasi melalui antarmuka chat (misal *"utamakan panen jagung pada bulan November"*).
+     * Modul *LLM Intent Derivation* mengekstrak tujuan manajerial ke dalam bobot objektif numerik.
+     * **Clamping Guard**: Seluruh bobot objektif hasil ekstraksi teks dikunci (*clamped*) pada nilai minimal $\ge 0,35$ untuk memastikan solver tidak pernah menghasilkan rencana ekstrem yang mengabaikan keselamatan pasokan dasar koperasi.
+
+2. **Model Inference Layer (Dual-Engine Optimization & Statistical Risk)**
+   * **Google OR-Tools CP-SAT (Constraint Programming & Satisfiability)**:
+     * Berfungsi sebagai mesin optimasi kombinatorial utama.
+     * Memodelkan pemilihan jadwal tanam sebagai masalah *Integer Linear Programming (ILP)* dengan penskalaan bilangan bulat $10^{15}$.
+     * Dibatasi oleh *time-budget* ketat sebesar **3,0 detik** untuk menjamin responsivitas antarmuka web.
+   * **Fallback Greedy & Redis Caching**:
+     * Jika solver CP-SAT mengalami *timeout* atau layanan Python tidak merespons, alur eksekusi langsung beralih ke *Go Fallback Heuristic* (pencarian lokal bertingkat).
+     * Hasil solusi di-cache di Redis selama 6 jam menggunakan kunci *hash* SHA-256 dari matriks masukan, memastikan permintaan identik dilayani secara instan tanpa komputasi ulang.
+   * **NumPy Vectorized Monte Carlo Simulation**:
+     * Setelah kombinasi petak terpilih (*Fusion & Selection*), mesin mengeksekusi 2.000 simulasi penarikan acak variabilitas suhu dan iklim normal 10 tahunan.
+     * Menghasilkan estimasi kuantil empiris: **P50 (ekspektasi nilai tengah)** dan **P90 (batas risiko pesimistis puncak panen)**.
+   * **LLM Narrative Generation & Penjaga Angka (ADR-0006 Guardrail)**:
+     * Model bahasa menyusun teks pertimbangan strategis (*rationale*) dalam bahasa Indonesia yang menjelaskan keunggulan dan trade-off rencana.
+     * **Guardrail Penjaga Angka (Zero Hallucination Regex Check)**: Seluruh angka tonase, tanggal, dan rupiah yang disebut oleh LLM dipindai menggunakan *regular expression* dan dicocokkan dengan angka hasil komputasi solver deterministik. **Jika ditemukan selisih bahkan 1 digit angka, seluruh narasi LLM dibuang seketika**, dan antarmuka hanya menampilkan angka tabel murni.
+
+3. **Result Layer (Validasi Zero-Trust & Klasifikasi Tiga Skenario)**
+   * **Validasi Zero-Trust Go**: Backend Go menerima kembali payload hasil inferensi, memverifikasi ulang bahwa tidak ada kendala fisik lahan yang dilanggar, merekonstruksi token `p1, v1` kembali ke UUID asli database, dan menghitung ulang seluruh metrik secara independen.
+   * **Klasifikasi Tiga Rencana Preskriptif**:
+     * **1. Rencana Aman (Risk-Averse)**: Memprioritaskan kestabilan logistik koperasi dengan menekan nilai P90 puncak panen serendah mungkin di bawah batas kapasitas pengeringan.
+     * **2. Rencana Pendapatan (Revenue-Maximizing)**: Menjadwalkan panen komoditas bernilai tinggi persis pada minggu-minggu di mana harga pasar regional diproyeksikan mencapai level tertinggi.
+     * **3. Rencana Pasar (Contract Fill)**: Memaksimalkan persentase keterpenuhan volume kontrak pasokan yang diminta oleh pembeli offtaker.
 
 ---
 
